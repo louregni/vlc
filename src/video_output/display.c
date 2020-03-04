@@ -721,6 +721,14 @@ void vout_SetDisplayViewpoint(vout_display_t *vd,
     }
 }
 
+void vout_SetDisplayOrientation(vout_display_t *vd)
+{
+    vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
+	video_orientation_t *p_orient = &osys->source.orientation;
+	++(*p_orient);
+	video_format_TransformBy(&osys->source, *p_orient);
+}
+
 vout_display_t *vout_display_New(vlc_object_t *parent,
                                  const video_format_t *source,
                                  vlc_video_context *vctx,

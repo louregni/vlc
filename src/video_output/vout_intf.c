@@ -305,6 +305,7 @@ void vout_IntfInit( vout_thread_t *p_vout )
     var_AddCallback( p_vout, "sub-filter", SubFilterCallback, NULL );
     var_AddCallback( p_vout, "sub-margin", SubMarginCallback, NULL );
     var_AddCallback( p_vout, "viewpoint", ViewpointCallback, NULL );
+    var_AddCallback( p_vout, "rotate", RotatepointCallback, NULL );
 }
 
 void vout_IntfReinit( vout_thread_t *p_vout )

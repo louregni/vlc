@@ -212,6 +212,10 @@ static int Control(vout_display_t *vd, int query, va_list ap)
                 return VLC_EGENERIC;
             break;
         }
+	//	case VOUT_DISPLAY_CHANGE_ORIENT:
+	//	{
+	//		break;
+	//	}
         default:
              msg_Err(vd, "unknown request %d", query);
              return VLC_EGENERIC;

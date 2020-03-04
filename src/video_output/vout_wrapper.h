@@ -39,6 +39,7 @@ void vout_SetDisplayAspect(vout_display_t *, unsigned num, unsigned den);
 void vout_SetDisplayCrop(vout_display_t *, unsigned num, unsigned den,
                          unsigned left, unsigned top, int right, int bottom);
 void vout_SetDisplayViewpoint(vout_display_t *, const vlc_viewpoint_t *);
+void vout_SetDisplayOrientation(vout_display_t *vd);
 
 #endif /* LIBVLC_VOUT_WRAPPER_H */
 

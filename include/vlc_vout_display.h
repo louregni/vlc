@@ -142,6 +142,7 @@ enum vout_display_query {
      * \ref VOUT_DISPLAY_CHANGE_ZOOM,
      * \ref VOUT_DISPLAY_CHANGE_SOURCE_ASPECT or
      * \ref VOUT_DISPLAY_CHANGE_SOURCE_CROP
+     * \ref VOUT_DISPLAY_CHANGE_ORIENT
      * control query returns an error.
      */
     VOUT_DISPLAY_RESET_PICTURES, /* const vout_display_cfg_t *, video_format_t * */
@@ -206,6 +207,7 @@ enum vout_display_query {
      * Notifies a change of VR/360° viewpoint.
      */
     VOUT_DISPLAY_CHANGE_VIEWPOINT,   /* const vout_display_cfg_t *p_cfg */
+    VOUT_DISPLAY_CHANGE_ORIENT,   /* const vout_display_cfg_t *p_cfg */
 };
 
 /**

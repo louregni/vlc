@@ -844,6 +844,14 @@ VOUT_ACTION_HANDLER(AspectRatio)
     vout_CycleVariable(vout, "aspect-ratio", VLC_VAR_STRING, true);
 }
 
+VOUT_ACTION_HANDLER(Rotate)
+{
+	vout_thread_t	*p_vout = vout;
+	write(2, "rotate call\n", 12);
+//    vout_CycleVariable(vout, "rotate", VLC_VAR_STRING, true);
+	vout_ChangeOrientation(p_vout, 10);
+}
+
 VOUT_ACTION_HANDLER(Crop)
 {
     VLC_UNUSED(intf);
@@ -1032,6 +1040,7 @@ static struct vlc_action const actions[] =
     VLC_ACTION_PLAYER(TOGGLE_FULLSCREEN, WALLPAPER, Vouts, false)
     /* vout actions */
     VLC_ACTION_VOUT(ASPECT_RATIO, ASPECT_RATIO, AspectRatio)
+    VLC_ACTION_VOUT(ROTATE, ROTATE, Rotate)
     VLC_ACTION_VOUT(CROP, UNCROP_RIGHT, Crop)
     VLC_ACTION_VOUT(TOGGLE_AUTOSCALE, ZOOM_DOUBLE, Zoom)
     VLC_ACTION_VOUT(DEINTERLACE, DEINTERLACE_MODE, Deinterlace)

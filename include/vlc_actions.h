@@ -235,6 +235,8 @@ typedef enum vlc_action_id {
     ACTIONID_WALLPAPER,
     /* vout aspect ratio */
     ACTIONID_ASPECT_RATIO,
+    /* vout rotate */
+    ACTIONID_ROTATE,
     /* vout cropping */
     ACTIONID_CROP,
     ACTIONID_CROP_TOP,
