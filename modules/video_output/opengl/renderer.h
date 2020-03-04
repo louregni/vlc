@@ -192,6 +192,9 @@ vlc_gl_renderer_Prepare(struct vlc_gl_renderer *renderer, picture_t *picture);
 int
 vlc_gl_renderer_Draw(struct vlc_gl_renderer *renderer,
                      const video_format_t *source);
+void
+vlc_gl_renderer_SetOrientation(struct vlc_gl_renderer *renderer,
+                             const video_orientation_t orientation);
 
 int
 vlc_gl_renderer_SetViewpoint(struct vlc_gl_renderer *renderer,

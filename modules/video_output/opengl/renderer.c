@@ -497,6 +497,15 @@ static void UpdateFOVy(struct vlc_gl_renderer *renderer)
     renderer->f_fovy = 2 * atanf(tanf(renderer->f_fovx / 2) / renderer->f_sar);
 }
 
+void
+vlc_gl_renderer_SetOrientation(struct vlc_gl_renderer *renderer,
+                             const video_orientation_t orientation)
+{
+    getOrientationTransformMatrix(orientation,
+                                    renderer->var.OrientationMatrix);
+}
+
+
 int
 vlc_gl_renderer_SetViewpoint(struct vlc_gl_renderer *renderer,
                              const vlc_viewpoint_t *p_vp)

@@ -93,6 +93,9 @@ vout_display_opengl_t *vout_display_opengl_New(video_format_t *fmt,
                                                vlc_video_context *context);
 void vout_display_opengl_Delete(vout_display_opengl_t *vgl);
 
+int vout_display_opengl_SetOrientation(vout_display_opengl_t *vgl,
+                                      video_orientation_t orientation);
+
 int vout_display_opengl_SetViewpoint(vout_display_opengl_t *vgl, const vlc_viewpoint_t*);
 
 void vout_display_opengl_SetWindowAspectRatio(vout_display_opengl_t *vgl,
