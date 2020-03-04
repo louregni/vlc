@@ -79,6 +79,8 @@ static int SecondarySubMarginCallback( vlc_object_t *, char const *,
                                        vlc_value_t, vlc_value_t, void * );
 static int ViewpointCallback( vlc_object_t *, char const *,
                               vlc_value_t, vlc_value_t, void * );
+static int RotateCallback( vlc_object_t *, char const *,
+                              vlc_value_t, vlc_value_t, void * );
 
 /*****************************************************************************
  * vout_IntfInit: called during the vout creation to initialise misc things.
@@ -305,7 +307,7 @@ void vout_IntfInit( vout_thread_t *p_vout )
     var_AddCallback( p_vout, "sub-filter", SubFilterCallback, NULL );
     var_AddCallback( p_vout, "sub-margin", SubMarginCallback, NULL );
     var_AddCallback( p_vout, "viewpoint", ViewpointCallback, NULL );
-    var_AddCallback( p_vout, "rotate", RotatepointCallback, NULL );
+    var_AddCallback( p_vout, "rotate", RotateCallback, NULL );
 }
 
 void vout_IntfReinit( vout_thread_t *p_vout )
@@ -340,6 +342,7 @@ void vout_IntfDeinit(vlc_object_t *obj)
     var_DelCallback(obj, "crop-left", CropBorderCallback, NULL);
     var_DelCallback(obj, "zoom", ZoomCallback, NULL);
     var_DelCallback(obj, "autoscale", AutoScaleCallback, NULL);
+    var_DelCallback( p_vout, "rotate", RotateCallback, NULL );
 }
 
 /*****************************************************************************

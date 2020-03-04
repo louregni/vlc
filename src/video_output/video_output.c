@@ -501,7 +501,7 @@ void vout_ChangeDisplayAspectRatio(vout_thread_t *vout,
     vlc_mutex_unlock(&sys->display_lock);
 }
 
-void vout_ChangeOrientation(vout_thread_t *vout, int angle)
+void vout_ChangeDisplayOrientation(vout_thread_t *vout, int angle)
 {
     vout_thread_sys_t *sys = vout->p;
     assert(!sys->dummy);

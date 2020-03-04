@@ -849,7 +849,7 @@ VOUT_ACTION_HANDLER(Rotate)
 	vout_thread_t	*p_vout = vout;
 	write(2, "rotate call\n", 12);
 //    vout_CycleVariable(vout, "rotate", VLC_VAR_STRING, true);
-	vout_ChangeOrientation(p_vout, 10);
+    vout_CycleVariable(vout, "aspect-ratio", VLC_VAR_STRING, true);
 }
 
 VOUT_ACTION_HANDLER(Crop)
