@@ -44,6 +44,18 @@
 
 #define MAX_PICTURES 4
 
+/* Determine our pixel format */
+static const enum wl_output_transform transforms[8] = {
+    [ORIENT_TOP_LEFT] = WL_OUTPUT_TRANSFORM_NORMAL,
+    [ORIENT_TOP_RIGHT] = WL_OUTPUT_TRANSFORM_FLIPPED,
+    [ORIENT_BOTTOM_LEFT] = WL_OUTPUT_TRANSFORM_FLIPPED_180,
+    [ORIENT_BOTTOM_RIGHT] = WL_OUTPUT_TRANSFORM_180,
+    [ORIENT_LEFT_TOP] = WL_OUTPUT_TRANSFORM_FLIPPED_270,
+    [ORIENT_LEFT_BOTTOM] = WL_OUTPUT_TRANSFORM_90,
+    [ORIENT_RIGHT_TOP] = WL_OUTPUT_TRANSFORM_270,
+    [ORIENT_RIGHT_BOTTOM] = WL_OUTPUT_TRANSFORM_FLIPPED_90,
+};
+
 struct vout_display_sys_t
 {
     vout_window_t *embed; /* VLC window */
@@ -212,6 +224,14 @@ static int Control(vout_display_t *vd, int query, va_list ap)
                 return VLC_EGENERIC;
             break;
         }
+        case VOUT_DISPLAY_CHANGE_ORIENTATION:
+        {
+            const vout_display_cfg_t *cfg = va_arg(ap, const vout_display_cfg_t *);
+
+            wl_surface_set_buffer_transform(sys->embed->handle.wl,
+                    cfg->orientation);
+            break;
+        }
         default:
              msg_Err(vd, "unknown request %d", query);
              return VLC_EGENERIC;
@@ -313,18 +333,6 @@ static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
         sys->viewport = wp_viewporter_get_viewport(sys->viewporter, surface);
     else
         sys->viewport = NULL;
-
-    /* Determine our pixel format */
-    static const enum wl_output_transform transforms[8] = {
-        [ORIENT_TOP_LEFT] = WL_OUTPUT_TRANSFORM_NORMAL,
-        [ORIENT_TOP_RIGHT] = WL_OUTPUT_TRANSFORM_FLIPPED,
-        [ORIENT_BOTTOM_LEFT] = WL_OUTPUT_TRANSFORM_FLIPPED_180,
-        [ORIENT_BOTTOM_RIGHT] = WL_OUTPUT_TRANSFORM_180,
-        [ORIENT_LEFT_TOP] = WL_OUTPUT_TRANSFORM_FLIPPED_270,
-        [ORIENT_LEFT_BOTTOM] = WL_OUTPUT_TRANSFORM_90,
-        [ORIENT_RIGHT_TOP] = WL_OUTPUT_TRANSFORM_270,
-        [ORIENT_RIGHT_BOTTOM] = WL_OUTPUT_TRANSFORM_FLIPPED_90,
-    };
 
     if (vlc_wl_interface_get_version(registry, "wl_compositor") >= 2)
     {
