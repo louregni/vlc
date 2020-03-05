@@ -503,11 +503,13 @@ void vout_ChangeDisplayAspectRatio(vout_thread_t *vout,
 
 void vout_ChangeDisplayOrientation(vout_thread_t *vout, int angle)
 {
+	write(2, "ChangeDisplayOrientation called\n", 32);
     vout_thread_sys_t *sys = vout->p;
     assert(!sys->dummy);
     vout_control_cmd_t cmd;
 
     vout_control_cmd_Init(&cmd, VOUT_CONTROL_ORIENT);
+	cmd.orientation = 2;
     vout_control_Push(&sys->control, &cmd);
 }
 
@@ -1689,8 +1691,10 @@ static void ThreadControl(vout_thread_t *vout, vout_control_cmd_t cmd)
         break;
     case VOUT_CONTROL_ORIENT:
         vlc_mutex_lock(&vout->p->display_lock);
+		write(2, "Called from ThreadControl video_output.c\n", 41);
         vout_SetDisplayOrientation(vout->p->display);
         vlc_mutex_unlock(&vout->p->display_lock);
+		break;
     default:
         break;
     }
