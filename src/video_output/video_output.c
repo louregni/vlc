@@ -501,16 +501,29 @@ void vout_ChangeDisplayAspectRatio(vout_thread_t *vout,
     vlc_mutex_unlock(&sys->display_lock);
 }
 
-void vout_ChangeDisplayOrientation(vout_thread_t *vout, int angle)
+void vout_ChangeDisplayOrientation(vout_thread_t *vout)
 {
 	write(2, "ChangeDisplayOrientation called\n", 32);
+
     vout_thread_sys_t *sys = vout->p;
     assert(!sys->dummy);
     vout_control_cmd_t cmd;
 
-    vout_control_cmd_Init(&cmd, VOUT_CONTROL_ORIENT);
-	cmd.orientation = 2;
+    vout_control_cmd_Init(&cmd, VOUT_CONTROL_ORIENTATION);
+	dprintf(2, "value of fmt orient : %u\n", sys->display->fmt.orientation);
+	dprintf(2, "value of user orient : %u\n", sys->display_cfg.orientation);
+
+    vlc_mutex_lock(&sys->display_lock);
+    if (sys->display != NULL)
+	{
+		if (sys->display_cfg.orientation == 7)
+			sys->display_cfg.orientation = 0;
+		else
+			++sys->display_cfg.orientation;
+	}
+	cmd.orientation = sys->display_cfg.orientation;
     vout_control_Push(&sys->control, &cmd);
+    vlc_mutex_unlock(&sys->display_lock);
 }
 
 void vout_ChangeCropRatio(vout_thread_t *vout, unsigned num, unsigned den)
@@ -1689,10 +1702,10 @@ static void ThreadControl(vout_thread_t *vout, vout_control_cmd_t cmd)
         vout_SetDisplayViewpoint(vout->p->display, &cmd.viewpoint);
         vlc_mutex_unlock(&vout->p->display_lock);
         break;
-    case VOUT_CONTROL_ORIENT:
+    case VOUT_CONTROL_ORIENTATION:
         vlc_mutex_lock(&vout->p->display_lock);
 		write(2, "Called from ThreadControl video_output.c\n", 41);
-        vout_SetDisplayOrientation(vout->p->display);
+        vout_SetDisplayOrientation(vout->p->display, &cmd.orientation);
         vlc_mutex_unlock(&vout->p->display_lock);
 		break;
     default:

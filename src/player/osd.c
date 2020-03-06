@@ -302,6 +302,10 @@ vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
                 vouts_osd_Message(&vout, 1, _("Zoom: x%f"), newval.f_float);
         }
     }
+    else if (strcmp(var, "rotate") == 0)
+    {
+        vouts_osd_Message(&vout, 1, _("Rotation"));
+    }
 
     (void) data;
     return VLC_SUCCESS;

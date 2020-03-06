@@ -115,6 +115,9 @@ typedef struct vout_display_cfg {
     } zoom;
 
     vlc_viewpoint_t viewpoint;
+
+    /** Orientation */
+    video_orientation_t orientation;
 } vout_display_cfg_t;
 
 /**
@@ -207,7 +210,12 @@ enum vout_display_query {
      * Notifies a change of VR/360° viewpoint.
      */
     VOUT_DISPLAY_CHANGE_VIEWPOINT,   /* const vout_display_cfg_t *p_cfg */
-    VOUT_DISPLAY_CHANGE_ORIENT,   /* const vout_display_cfg_t *p_cfg */
+
+    /**
+     * Rotate vout_display
+     *
+     */
+    VOUT_DISPLAY_CHANGE_ORIENTATION,   /* const vout_display_cfg_t *p_cfg */
 };
 
 /**

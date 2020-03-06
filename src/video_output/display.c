@@ -721,18 +721,28 @@ void vout_SetDisplayViewpoint(vout_display_t *vd,
     }
 }
 
-void vout_SetDisplayOrientation(vout_display_t *vd)
+void vout_SetDisplayOrientation(vout_display_t *vd, const video_orientation_t *orient)
 {
 	write(2, "vout_SetDisplayOrientation\n", 27);
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
-	//video_orientation_t *p_orient_src = &osys->source.orientation;
-//
-//	video_orientation_t orient_dst = ORIENT_BOTTOM_RIGHT;
-//	video_format_TransformTo(&osys->source, orient_dst);
-//    video_format_t source_rot;
-//    video_format_ApplyRotation(&source_rot, &osys->source);
-//	osys->source = source_rot;
-	osys->source.orientation = ORIENT_BOTTOM_RIGHT;
+
+    if ( osys->cfg.orientation != *orient )
+    {
+	    video_orientation_t old_orient = osys->cfg.orientation;
+
+        osys->cfg.orientation = *orient;
+	    if ( vout_display_Control(vd, VOUT_DISPLAY_CHANGE_ORIENTATION, &osys->cfg) )
+        {
+            msg_Err(vd, "Failed to change Viewpoint");
+            osys->cfg.orientation = old_orient;
+        }
+    }
+    else
+    {
+            dprintf(2, "Failed to change display orientation is even as set display orientation argument\n");
+            msg_Err(vd, "Failed to change display orientation is even as set display orientation argument\n");
+    }
+
 }
 
 vout_display_t *vout_display_New(vlc_object_t *parent,

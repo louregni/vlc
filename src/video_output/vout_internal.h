@@ -254,7 +254,6 @@ void vout_ChangeWindowed(vout_thread_t *);
 void vout_ChangeWindowState(vout_thread_t *, unsigned state);
 void vout_ChangeDisplaySize(vout_thread_t *, unsigned width, unsigned height);
 void vout_ChangeDisplayFilled(vout_thread_t *, bool is_filled);
-void vout_ChangeDisplayOrientation(vout_thread_t *vout, int angle);
 void vout_ChangeZoom(vout_thread_t *, unsigned num, unsigned den);
 void vout_ChangeDisplayAspectRatio(vout_thread_t *, unsigned num, unsigned den);
 void vout_ChangeCropRatio(vout_thread_t *, unsigned num, unsigned den);

@@ -79,6 +79,8 @@ static int SecondarySubMarginCallback( vlc_object_t *, char const *,
                                        vlc_value_t, vlc_value_t, void * );
 static int ViewpointCallback( vlc_object_t *, char const *,
                               vlc_value_t, vlc_value_t, void * );
+static int OrientationCallback( vlc_object_t *, char const *,
+                              vlc_value_t, vlc_value_t, void * );
 
 /*****************************************************************************
  * vout_IntfInit: called during the vout creation to initialise misc things.
@@ -127,6 +129,36 @@ static const struct
     { "239:100", "2.39:1" },
     { "5:4", "5:4" },
 };
+
+static const struct
+{
+    int orient;
+    char psz_label[8];
+} p_orientation_values[] = {
+    { 0, "Default" },
+    { 1, "Flip H" },
+    { 2, "Flip V" },
+    { 3, "Flip V" },
+    { 4, "Flip V" },
+    { 5, "Flip V" },
+    { 6, "Flip V" },
+    { 7, "Flip V" },
+};
+
+//static const struct
+//{
+//    video_orientation_t orient;
+//    char    psz_label[20];
+//} p_orientation_values[] = {
+//    { ORIENT_TOP_LEFT, N_("Default") },
+//    { ORIENT_TOP_RIGHT, N_("Flip H") },
+//    { ORIENT_BOTTOM_LEFT N_("Flip V") },
+//    { ORIENT_BOTTOM_RIGHT N_("Flip V") },
+//    { ORIENT_LEFT_TOP N_("Flip V") },
+//    { ORIENT_LEFT_BOTTOM N_("Flip V") },
+//    { ORIENT_RIGHT_TOP N_("Flip V") },
+//    { ORIENT_RIGHT_BOTTOM N_("Flip V") },
+//};
 
 static void AddCustomRatios( vout_thread_t *p_vout, const char *psz_var,
                              char *psz_list )
@@ -284,6 +316,17 @@ void vout_CreateVars( vout_thread_t *p_vout )
     /* Viewpoint */
     var_Create( p_vout, "viewpoint", VLC_VAR_ADDRESS  );
     var_Create( p_vout, "viewpoint-changeable", VLC_VAR_BOOL );
+
+    /* Rotation display */
+    var_Create( p_vout, "rotate", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND ); //| VLC_VAR_DOINHERIT );
+    var_Change( p_vout, "rotate", VLC_VAR_SETTEXT, _("orientation") );
+    for( size_t i = 0; i < ARRAY_SIZE(p_orientation_values); i++ )
+    {
+        val.i_int = p_orientation_values[i].orient;
+        var_Change( p_vout, "rotate", VLC_VAR_ADDCHOICE, val,
+                    vlc_gettext( p_orientation_values[i].psz_label ) );
+    }
+
 }
 
 void vout_IntfInit( vout_thread_t *p_vout )
@@ -305,6 +348,7 @@ void vout_IntfInit( vout_thread_t *p_vout )
     var_AddCallback( p_vout, "sub-filter", SubFilterCallback, NULL );
     var_AddCallback( p_vout, "sub-margin", SubMarginCallback, NULL );
     var_AddCallback( p_vout, "viewpoint", ViewpointCallback, NULL );
+    var_AddCallback( p_vout, "rotate", OrientationCallback, NULL );
 }
 
 void vout_IntfReinit( vout_thread_t *p_vout )
@@ -339,6 +383,7 @@ void vout_IntfDeinit(vlc_object_t *obj)
     var_DelCallback(obj, "crop-left", CropBorderCallback, NULL);
     var_DelCallback(obj, "zoom", ZoomCallback, NULL);
     var_DelCallback(obj, "autoscale", AutoScaleCallback, NULL);
+    var_DelCallback(obj, "rotate", OrientationCallback, NULL);
 }
 
 /*****************************************************************************
@@ -566,9 +611,7 @@ static int FullscreenCallback( vlc_object_t *p_this, char const *psz_cmd,
     (void)psz_cmd; (void) oldval; (void)p_data;
 
     if( newval.b_bool )
-	{
         vout_ChangeFullscreen(p_vout, NULL);
-	}
     else
         vout_ChangeWindowed(p_vout);
     return VLC_SUCCESS;
@@ -643,5 +686,15 @@ static int ViewpointCallback( vlc_object_t *p_this, char const *psz_cmd,
 
     if( newval.p_address != NULL )
         vout_ChangeViewpoint(p_vout, newval.p_address);
+    return VLC_SUCCESS;
+}
+
+static int OrientationCallback( vlc_object_t *p_this, char const *psz_cmd,
+                              vlc_value_t oldval, vlc_value_t newval, void *p_data)
+{
+    vout_thread_t *p_vout = (vout_thread_t *)p_this;
+    VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
+
+    vout_ChangeDisplayOrientation(p_vout);
     return VLC_SUCCESS;
 }
