@@ -501,7 +501,8 @@ void vout_ChangeDisplayAspectRatio(vout_thread_t *vout,
     vlc_mutex_unlock(&sys->display_lock);
 }
 
-void vout_ChangeDisplayOrientation(vout_thread_t *vout)
+void vout_ChangeDisplayOrientation(vout_thread_t *vout,
+		video_orientation_t orient)
 {
 	write(2, "ChangeDisplayOrientation called\n", 32);
 
@@ -516,10 +517,7 @@ void vout_ChangeDisplayOrientation(vout_thread_t *vout)
     vlc_mutex_lock(&sys->display_lock);
     if (sys->display != NULL)
 	{
-		if (sys->display_cfg.orientation == 7)
-			sys->display_cfg.orientation = 0;
-		else
-			++sys->display_cfg.orientation;
+		sys->display_cfg.orientation = orient;
 	}
 	cmd.orientation = sys->display_cfg.orientation;
     vout_control_Push(&sys->control, &cmd);

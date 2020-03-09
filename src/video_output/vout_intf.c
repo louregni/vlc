@@ -132,33 +132,14 @@ static const struct
 
 static const struct
 {
-    int orient;
+    int i_orient;
     char psz_label[8];
 } p_orientation_values[] = {
-    { 0, "Default" },
-    { 1, "Flip H" },
-    { 2, "Flip V" },
-    { 3, "Flip V" },
-    { 4, "Flip V" },
-    { 5, "Flip V" },
-    { 6, "Flip V" },
-    { 7, "Flip V" },
+    { 0, N_("Default") },
+    { ORIENT_ROTATED_90, "90" },
+    { ORIENT_ROTATED_180, "180" },
+    { ORIENT_ROTATED_270, "270" },
 };
-
-//static const struct
-//{
-//    video_orientation_t orient;
-//    char    psz_label[20];
-//} p_orientation_values[] = {
-//    { ORIENT_TOP_LEFT, N_("Default") },
-//    { ORIENT_TOP_RIGHT, N_("Flip H") },
-//    { ORIENT_BOTTOM_LEFT N_("Flip V") },
-//    { ORIENT_BOTTOM_RIGHT N_("Flip V") },
-//    { ORIENT_LEFT_TOP N_("Flip V") },
-//    { ORIENT_LEFT_BOTTOM N_("Flip V") },
-//    { ORIENT_RIGHT_TOP N_("Flip V") },
-//    { ORIENT_RIGHT_BOTTOM N_("Flip V") },
-//};
 
 static void AddCustomRatios( vout_thread_t *p_vout, const char *psz_var,
                              char *psz_list )
@@ -322,7 +303,8 @@ void vout_CreateVars( vout_thread_t *p_vout )
     var_Change( p_vout, "rotate", VLC_VAR_SETTEXT, _("orientation") );
     for( size_t i = 0; i < ARRAY_SIZE(p_orientation_values); i++ )
     {
-        val.i_int = p_orientation_values[i].orient;
+        dprintf(2, "i value %lu\n", i);
+        val.i_int = p_orientation_values[i].i_orient;
         var_Change( p_vout, "rotate", VLC_VAR_ADDCHOICE, val,
                     vlc_gettext( p_orientation_values[i].psz_label ) );
     }
@@ -692,9 +674,11 @@ static int ViewpointCallback( vlc_object_t *p_this, char const *psz_cmd,
 static int OrientationCallback( vlc_object_t *p_this, char const *psz_cmd,
                               vlc_value_t oldval, vlc_value_t newval, void *p_data)
 {
+    write(2, "Orientation callback called\n", 28);
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
     VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
 
-    vout_ChangeDisplayOrientation(p_vout);
+    dprintf(2, "Angle to Change Display Orientation : %d\n", newval.i_int);
+    vout_ChangeDisplayOrientation(p_vout, newval.i_int);
     return VLC_SUCCESS;
 }

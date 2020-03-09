@@ -97,7 +97,8 @@ enum vlc_vout_order
  * Prototypes
  *****************************************************************************/
 
-VLC_API void vout_ChangeDisplayOrientation( vout_thread_t * );
+VLC_API void vout_ChangeDisplayOrientation( vout_thread_t *,
+        video_orientation_t orient);
 
 /**
  * Destroys a vout.
