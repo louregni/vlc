@@ -162,8 +162,17 @@ void vout_display_PlacePicture(vout_display_place_t *place,
                                            source, &cfg_tmp);
     }
 
-    const unsigned width  = source->i_visible_width;
-    const unsigned height = source->i_visible_height;
+    unsigned width, height;
+    if (cfg->orientation == ORIENT_ROTATED_90 || cfg->orientation == ORIENT_ROTATED_270)
+    {
+	    height = source->i_visible_width;
+        width = source->i_visible_height;
+    }
+    else
+    {
+	    width  = source->i_visible_width;
+        height = source->i_visible_height;
+    }
     /* Compute the height if we use the width to fill up display_width */
     const int64_t scaled_height = (int64_t)height * display_width  * cfg->display.sar.num * source->i_sar_den / (width  * source->i_sar_num * cfg->display.sar.den);
     /* And the same but switching width/height */
@@ -723,7 +732,6 @@ void vout_SetDisplayViewpoint(vout_display_t *vd,
 
 void vout_SetDisplayOrientation(vout_display_t *vd, const video_orientation_t *orient)
 {
-	write(2, "vout_SetDisplayOrientation\n", 27);
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
     if ( osys->cfg.orientation != *orient )
@@ -732,17 +740,10 @@ void vout_SetDisplayOrientation(vout_display_t *vd, const video_orientation_t *o
 
         osys->cfg.orientation = *orient;
 	    if ( vout_display_Control(vd, VOUT_DISPLAY_CHANGE_ORIENTATION, &osys->cfg) )
-        {
-            msg_Err(vd, "Failed to change Viewpoint");
             osys->cfg.orientation = old_orient;
-        }
     }
     else
-    {
-            dprintf(2, "Failed to change display orientation is even as set display orientation argument\n");
             msg_Err(vd, "Failed to change display orientation is even as set display orientation argument\n");
-    }
-
 }
 
 vout_display_t *vout_display_New(vlc_object_t *parent,

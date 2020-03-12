@@ -303,6 +303,13 @@ int vout_display_opengl_SetViewpoint(vout_display_opengl_t *vgl,
     return vlc_gl_renderer_SetViewpoint(vgl->renderer, p_vp);
 }
 
+int vout_display_opengl_SetOrientation(vout_display_opengl_t *vgl,
+                                    const video_orientation_t orientation)
+{
+    vlc_gl_renderer_SetOrientation(vgl->renderer, orientation);
+    return (VLC_SUCCESS);
+}
+
 void vout_display_opengl_SetWindowAspectRatio(vout_display_opengl_t *vgl,
                                               float f_sar)
 {
