@@ -799,7 +799,6 @@ vout_CycleVariable(vout_thread_t *vout,
                &num_choices, &choices, NULL);
 
     vlc_value_t *choice = choices;
-    dprintf(2, "num choices %zu\n", num_choices);
     for (size_t curidx = 0; curidx < num_choices; ++curidx, ++choice)
         if ((vartype == VLC_VAR_FLOAT &&
              choice->f_float == val.f_float) ||
@@ -841,7 +840,7 @@ vout_CycleVariable(vout_thread_t *vout,
                       vartype == VLC_VAR_STRING || \
                       vartype == VLC_VAR_INTEGER, \
                       "vartype must be either VLC_VAR_FLOAT or VLC_VAR_STRING" \
-               " or VLC_VAR_STRING"); \
+               " or VLC_VAR_INTEGER"); \
         vout_CycleVariable(vout, varname, vartype, next); \
     } while (0)
 
@@ -849,20 +848,13 @@ VOUT_ACTION_HANDLER(AspectRatio)
 {
     VLC_UNUSED(action_id); VLC_UNUSED(intf);
     char *choice = var_GetString(vout, "aspect-ratio");
-    dprintf(2, "Vout_aspect-ratio choice : %s\n", choice);
     vout_CycleVariable(vout, "aspect-ratio", VLC_VAR_STRING, true);
 }
 
 VOUT_ACTION_HANDLER(Rotate)
 {
     VLC_UNUSED(action_id); VLC_UNUSED(intf);
-	write(2, "rotate call\n", 12);
-	//vout_ChangeDisplayOrientation(vout);
-    //dprintf(2, "result %s\n", result);
-    int choice = var_GetInteger(vout, "rotate");
-    dprintf(2, "Current vout_orientaiton choice : %u\n", choice);
     vout_CycleVariable(vout, "rotate", VLC_VAR_INTEGER, true);
-    //var_SetInteger(vout, "rotate", 3);
 }
 
 VOUT_ACTION_HANDLER(Crop)

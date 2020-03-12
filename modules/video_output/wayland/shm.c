@@ -228,7 +228,6 @@ static int Control(vout_display_t *vd, int query, va_list ap)
         {
             const vout_display_cfg_t *cfg = va_arg(ap, const vout_display_cfg_t *);
 
-            dprintf(2, "received cfg orientation : %u\n", cfg->orientation);
             wl_surface_set_buffer_transform(sys->embed->handle.wl,
                     cfg->orientation);
             break;

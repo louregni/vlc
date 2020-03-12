@@ -218,7 +218,6 @@ vout_osd_PrintVariableText(vout_thread_t *vout, const char *varname, int vartype
                &num_choices, &choices, &choices_text);
     for (size_t i = 0; i < num_choices; ++i)
     {
-        //dprintf(2, "value of choice %li | val %li\n", choices[i].i_int, varval.i_int);
         if ( !found )
         {
             switch(vartype)
@@ -237,19 +236,8 @@ vout_osd_PrintVariableText(vout_thread_t *vout, const char *varname, int vartype
                  break;
             }
                 vouts_osd_Message(&vout, 1, osdfmt, choices_text[i]);
-//                dprintf(2, "HI : value of choice %li | val %li\n", choices[i].i_int, varval.i_int);
             found = true;
         }
-//        if (!found)
-//            if ((isvarstring &&
-//                 strcmp(choices[i].psz_string, varval.psz_string) == 0) ||
-//                (!isvarstring && choices[i].f_float == varval.f_float) ||
-//                (!isvarstring && choices[i].i_int == varval.i_int))
-//            {
-//                vouts_osd_Message(&vout, 1, osdfmt, choices_text[i]);
-//                dprintf(2, "HI : value of choice %li | val %li\n", choices[i].i_int, varval.i_int);
-//                found = true;
-//            }
         if (vartype == VLC_VAR_STRING)
             free(choices[i].psz_string);
         free(choices_text[i]);
@@ -328,12 +316,8 @@ vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
     }
     else if (strcmp(var, "rotate") == 0)
     {
-       //vouts_osd_Message(&vout, 1, _("Lrientation %d"), newval.i_int);
-        //vouts_osd_Message(&vout, 1, _("Rotation"));
-        dprintf(2, "newval integer : %li\n", newval.i_int);
-        int found = vout_osd_PrintVariableText(vout, var, VLC_VAR_INTEGER,
+        vout_osd_PrintVariableText(vout, var, VLC_VAR_INTEGER,
                                    newval, _("Orientation: %s"));
-        dprintf(2, "found choice in print\n");
     }
 
     (void) data;

@@ -299,11 +299,10 @@ void vout_CreateVars( vout_thread_t *p_vout )
     var_Create( p_vout, "viewpoint-changeable", VLC_VAR_BOOL );
 
     /* Rotation display */
-    var_Create( p_vout, "rotate", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND ); //| VLC_VAR_DOINHERIT );
+    var_Create( p_vout, "rotate", VLC_VAR_INTEGER | VLC_VAR_ISCOMMAND );
     var_Change( p_vout, "rotate", VLC_VAR_SETTEXT, _("orientation") );
     for( size_t i = 0; i < ARRAY_SIZE(p_orientation_values); i++ )
     {
-        dprintf(2, "i value %lu\n", i);
         val.i_int = p_orientation_values[i].i_orient;
         var_Change( p_vout, "rotate", VLC_VAR_ADDCHOICE, val,
                     vlc_gettext( p_orientation_values[i].psz_label ) );
@@ -674,11 +673,9 @@ static int ViewpointCallback( vlc_object_t *p_this, char const *psz_cmd,
 static int OrientationCallback( vlc_object_t *p_this, char const *psz_cmd,
                               vlc_value_t oldval, vlc_value_t newval, void *p_data)
 {
-    write(2, "Orientation callback called\n", 28);
     vout_thread_t *p_vout = (vout_thread_t *)p_this;
     VLC_UNUSED(psz_cmd); VLC_UNUSED(oldval); VLC_UNUSED(p_data);
 
-    dprintf(2, "Angle to Change Display Orientation : %d\n", newval.i_int);
     vout_ChangeDisplayOrientation(p_vout, newval.i_int);
     return VLC_SUCCESS;
 }
