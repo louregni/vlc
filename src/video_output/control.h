@@ -53,6 +53,7 @@ typedef struct {
         } spu_delay;
         vlc_mouse_t mouse;
         vlc_viewpoint_t viewpoint;
+        video_orientation_t orientation;
     };
 } vout_control_cmd_t;
 
