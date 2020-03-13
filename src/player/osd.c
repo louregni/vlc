@@ -210,7 +210,6 @@ vout_osd_PrintVariableText(vout_thread_t *vout, const char *varname, int vartype
                            vlc_value_t varval, const char *osdfmt)
 {
     bool found = false;
-    bool isvarstring = vartype == VLC_VAR_STRING;
     size_t num_choices;
     vlc_value_t *choices;
     char **choices_text;
@@ -218,15 +217,27 @@ vout_osd_PrintVariableText(vout_thread_t *vout, const char *varname, int vartype
                &num_choices, &choices, &choices_text);
     for (size_t i = 0; i < num_choices; ++i)
     {
-        if (!found)
-            if ((isvarstring &&
-                 strcmp(choices[i].psz_string, varval.psz_string) == 0) ||
-                (!isvarstring && choices[i].f_float == varval.f_float))
+        if ( !found )
+        {
+            switch(vartype)
             {
-                vouts_osd_Message(&vout, 1, osdfmt, choices_text[i]);
-                found = true;
+                case VLC_VAR_STRING:
+                    if ( strcmp(choices[i].psz_string, varval.psz_string) != 0 )
+                        continue;
+                break;
+                case VLC_VAR_FLOAT:
+                    if ( choices[i].f_float != varval.f_float )
+                        continue;
+                break;
+                case VLC_VAR_INTEGER:
+                    if ( choices[i].i_int != varval.i_int )
+                        continue;
+                break;
             }
-        if (isvarstring)
+            vouts_osd_Message(&vout, 1, osdfmt, choices_text[i]);
+            found = true;
+        }
+        if (vartype == VLC_VAR_STRING)
             free(choices[i].psz_string);
         free(choices_text[i]);
     }
@@ -301,6 +312,11 @@ vlc_player_vout_OSDCallback(vlc_object_t *this, const char *var,
             if (!found)
                 vouts_osd_Message(&vout, 1, _("Zoom: x%f"), newval.f_float);
         }
+    }
+    else if (strcmp(var, "rotate") == 0)
+    {
+        vout_osd_PrintVariableText(vout, var, VLC_VAR_INTEGER,
+                                   newval, _("Orientation: %s"));
     }
 
     (void) data;

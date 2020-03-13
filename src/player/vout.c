@@ -133,7 +133,7 @@ vlc_player_VoutCallback(vlc_object_t *this, const char *var,
 static const char osd_vars[][sizeof("secondary-sub-margin")] = {
     "aspect-ratio", "autoscale", "crop", "crop-bottom",
     "crop-top", "crop-left", "crop-right", "deinterlace",
-    "deinterlace-mode", "sub-margin", "secondary-sub-margin", "zoom"
+    "deinterlace-mode", "sub-margin", "secondary-sub-margin", "zoom", "rotate"
 };
 
 void

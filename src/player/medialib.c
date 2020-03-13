@@ -273,6 +273,7 @@ vlc_player_UpdateMLStates(vlc_player_t *player, struct vlc_player_input* input)
         char* crop = var_GetNonEmptyString(vout, "crop");
         char* deinterlace = var_GetNonEmptyString(vout, "deinterlace-mode");
         char* video_filter = var_GetNonEmptyString(vout, "video-filter");
+        char* video_orientation = var_GetNonEmptyString(vout, "rotate");
 
         vlc_player_CompareAssignState(&input->ml.states.aspect_ratio, &aspect_ratio);
         vlc_player_CompareAssignState(&input->ml.states.crop, &crop);
