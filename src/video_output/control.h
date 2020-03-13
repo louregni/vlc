@@ -33,6 +33,8 @@ enum {
     VOUT_CONTROL_MOUSE_STATE,           /* vlc_mouse_t */
 
     VOUT_CONTROL_VIEWPOINT,             /* viewpoint */
+
+    VOUT_CONTROL_ORIENTATION,           /* orientation */
 };
 
 typedef struct {

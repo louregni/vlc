@@ -1534,6 +1534,9 @@ static const char *const mouse_wheel_texts[] = {
 #define UNZOOM_KEY_TEXT N_("Un-Zoom")
 #define UNZOOM_KEY_LONGTEXT N_("Un-Zoom")
 
+#define ROTATE_KEY_TEXT N_("Rotate")
+#define ROTATE_KEY_LONGTEXT N_("Rotate vout")
+
 #define CROP_TOP_KEY_TEXT N_("Crop one pixel from the top of the video")
 #define CROP_TOP_KEY_LONGTEXT N_("Crop one pixel from the top of the video")
 #define UNCROP_TOP_KEY_TEXT N_("Uncrop one pixel from the top of the video")
@@ -2589,6 +2592,9 @@ vlc_module_begin ()
 #   define KEY_ZOOM_ORIGINAL      "Alt+3"
 #   define KEY_ZOOM_DOUBLE        "Alt+4"
 
+/* Rotate */
+#   define KEY_ROTATE             "Ctrl+i"
+
 /* Bookmarks */
 #   define KEY_SET_BOOKMARK1      "Ctrl+F1"
 #   define KEY_SET_BOOKMARK2      "Ctrl+F2"
@@ -2740,6 +2746,7 @@ vlc_module_begin ()
             INTF_POPUP_MENU_KEY_TEXT, INTF_POPUP_MENU_KEY_LONGTEXT)
     add_key("key-snapshot", KEY_SNAPSHOT, SNAP_KEY_TEXT, SNAP_KEY_LONGTEXT)
     add_key("key-record", KEY_RECORD, RECORD_KEY_TEXT, RECORD_KEY_LONGTEXT)
+    add_key("key-rotate", KEY_ROTATE, ROTATE_KEY_TEXT, ROTATE_KEY_LONGTEXT)
     add_key("key-zoom", KEY_ZOOM, ZOOM_KEY_TEXT, ZOOM_KEY_LONGTEXT)
     add_key("key-unzoom", KEY_UNZOOM, UNZOOM_KEY_TEXT, UNZOOM_KEY_LONGTEXT)
     add_key("key-wallpaper", KEY_WALLPAPER,

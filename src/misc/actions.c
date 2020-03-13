@@ -326,6 +326,7 @@ static const struct name2action
     { "rate-normal", ACTIONID_RATE_NORMAL, },
     { "rate-slower-fine", ACTIONID_RATE_SLOWER_FINE, },
     { "record", ACTIONID_RECORD, },
+    { "rotate", ACTIONID_ROTATE, },
     { "set-bookmark1", ACTIONID_SET_BOOKMARK1, },
     { "set-bookmark10", ACTIONID_SET_BOOKMARK10, },
     { "set-bookmark2", ACTIONID_SET_BOOKMARK2, },
