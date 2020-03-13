@@ -163,7 +163,8 @@ void vout_display_PlacePicture(vout_display_place_t *place,
     }
 
     unsigned width, height;
-    if (cfg->orientation == ORIENT_ROTATED_90 || cfg->orientation == ORIENT_ROTATED_270)
+    if (cfg->orientation == ORIENT_ROTATED_90
+            || cfg->orientation == ORIENT_ROTATED_270)
     {
         height = source->i_visible_width;
         width = source->i_visible_height;
@@ -743,7 +744,7 @@ void vout_SetDisplayOrientation(vout_display_t *vd, const video_orientation_t *o
             osys->cfg.orientation = old_orient;
     }
     else
-            msg_Err(vd, "Failed to change display orientation is even as set display orientation argument\n");
+        msg_Err(vd, "Failed to change display orientation is even as set display orientation argument\n");
 }
 
 vout_display_t *vout_display_New(vlc_object_t *parent,

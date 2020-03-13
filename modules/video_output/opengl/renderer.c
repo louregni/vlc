@@ -102,7 +102,70 @@ static void getViewpointMatrixes(struct vlc_gl_renderer *renderer,
     }
 
 }
+static void getOrientationViewMatrix(video_orientation_t orientation,
+                                          GLfloat matrix[static 16])
+{
+    memcpy(matrix, identity, sizeof(identity));
 
+    const int k_cos_pi = -1;
+    const int k_cos_pi_2 = 0;
+    const int k_cos_n_pi_2 = 0;
+
+    const int k_sin_pi = 0;
+    const int k_sin_pi_2 = 1;
+    const int k_sin_n_pi_2 = -1;
+
+    switch (orientation) {
+
+        case ORIENT_ROTATED_90:
+            matrix[0 * 4 + 0] = k_cos_pi_2;
+            matrix[0 * 4 + 1] = -k_sin_pi_2;
+            matrix[1 * 4 + 0] = k_sin_pi_2;
+            matrix[1 * 4 + 1] = k_cos_pi_2;
+            break;
+        case ORIENT_ROTATED_180:
+            matrix[0 * 4 + 0] = k_cos_pi;
+            matrix[0 * 4 + 1] = -k_sin_pi;
+            matrix[1 * 4 + 0] = k_sin_pi;
+            matrix[1 * 4 + 1] = k_cos_pi;
+            matrix[3 * 4 + 0] = 1;
+            matrix[3 * 4 + 1] = 1;
+            break;
+        case ORIENT_ROTATED_270:
+            matrix[0 * 4 + 0] = k_cos_n_pi_2;
+            matrix[0 * 4 + 1] = -k_sin_n_pi_2;
+            matrix[1 * 4 + 0] = k_sin_n_pi_2;
+            matrix[1 * 4 + 1] = k_cos_n_pi_2;
+            matrix[3 * 4 + 0] = 1;
+            break;
+        case ORIENT_HFLIPPED:
+            matrix[0 * 4 + 0] = -1;
+            matrix[3 * 4 + 0] = 1;
+            break;
+        case ORIENT_VFLIPPED:
+            matrix[1 * 4 + 1] = -1;
+            matrix[3 * 4 + 1] = 1;
+            break;
+        case ORIENT_TRANSPOSED:
+            matrix[0 * 4 + 0] = 0;
+            matrix[1 * 4 + 1] = 0;
+            matrix[2 * 4 + 2] = -1;
+            matrix[0 * 4 + 1] = 1;
+            matrix[1 * 4 + 0] = 1;
+            break;
+        case ORIENT_ANTI_TRANSPOSED:
+            matrix[0 * 4 + 0] = 0;
+            matrix[1 * 4 + 1] = 0;
+            matrix[2 * 4 + 2] = -1;
+            matrix[0 * 4 + 1] = -1;
+            matrix[1 * 4 + 0] = -1;
+            matrix[3 * 4 + 0] = 1;
+            matrix[3 * 4 + 1] = 1;
+            break;
+        default:
+            break;
+    }
+}
 static void getOrientationTransformMatrix(video_orientation_t orientation,
                                           GLfloat matrix[static 16])
 {
@@ -501,8 +564,26 @@ void
 vlc_gl_renderer_SetOrientation(struct vlc_gl_renderer *renderer,
                              const video_orientation_t orientation)
 {
-    getOrientationTransformMatrix(orientation,
-                                    renderer->var.OrientationMatrix);
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            dprintf(2, "%9f ", renderer->var.ViewMatrix[i * 4 + j]);
+        }
+        dprintf(2, "\n");
+    }
+    dprintf(2, "\n");
+    getOrientationViewMatrix(orientation,
+                                    renderer->var.ViewMatrix);
+    //renderer->var.ViewMatrix[4] = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            dprintf(2, "%9f ", renderer->var.ViewMatrix[i * 4 + j]);
+        }
+        dprintf(2, "\n");
+    }
 }
 
 
@@ -920,7 +1001,15 @@ static void DrawWithShaders(struct vlc_gl_renderer *renderer)
         tm = interop->ops->get_transform_matrix(interop);
     if (!tm)
         tm = identity;
-
+    dprintf(2, "Matrix before draw\n");
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            dprintf(2, "%9f ", renderer->var.ViewMatrix[i * 4 + j]);
+        }
+        dprintf(2, "\n");
+    }
     vt->UniformMatrix4fv(renderer->uloc.TransformMatrix, 1, GL_FALSE, tm);
 
     vt->UniformMatrix4fv(renderer->uloc.OrientationMatrix, 1, GL_FALSE,
