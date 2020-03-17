@@ -163,17 +163,8 @@ void vout_display_PlacePicture(vout_display_place_t *place,
     }
 
     unsigned width, height;
-    if (cfg->orientation == ORIENT_ROTATED_90
-            || cfg->orientation == ORIENT_ROTATED_270)
-    {
-        height = source->i_visible_width;
-        width = source->i_visible_height;
-    }
-    else
-    {
-        width  = source->i_visible_width;
-        height = source->i_visible_height;
-    }
+    width  = source->i_visible_width;
+    height = source->i_visible_height;
     /* Compute the height if we use the width to fill up display_width */
     const int64_t scaled_height = (int64_t)height * display_width  * cfg->display.sar.num * source->i_sar_den / (width  * source->i_sar_num * cfg->display.sar.den);
     /* And the same but switching width/height */
@@ -741,7 +732,9 @@ void vout_SetDisplayOrientation(vout_display_t *vd, const video_orientation_t *o
 
         osys->cfg.orientation = *orient;
         if ( vout_display_Control(vd, VOUT_DISPLAY_CHANGE_ORIENTATION, &osys->cfg) )
+        {
             osys->cfg.orientation = old_orient;
+        }
     }
     else
         msg_Err(vd, "Failed to change display orientation is even as set display orientation argument\n");

@@ -251,21 +251,7 @@ static int Control (vout_display_t *vd, int query, va_list ap)
       case VOUT_DISPLAY_CHANGE_ORIENTATION:
       {
         const vout_display_cfg_t *cfg = va_arg (ap, const vout_display_cfg_t *);
-
- //       if (cfg->orientation == ORIENT_ROTATED_90
- //               || cfg->orientation == ORIENT_ROTATED_270)
-//        if (cfg->orientation)
-//        {
-//            int tmp;
-//
-//            tmp = vd->source.i_sar_den;
-//            vd->source.i_sar_num = vd->source.i_sar_den;
-//            vd->source.i_sar_den = tmp;
-//        }
-        vout_display_opengl_SetOrientation(sys->vgl,
-                cfg->orientation);
-        //vout_display_PlacePicture(&sys->place, &vd->source, cfg);
-        //sys->place_changed = true;
+        vout_display_opengl_SetOrientation(sys->vgl, cfg->orientation);
         return VLC_SUCCESS;
       }
       default:

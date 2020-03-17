@@ -303,7 +303,6 @@ void vout_CreateVars( vout_thread_t *p_vout )
     var_Change( p_vout, "rotate", VLC_VAR_SETTEXT, _("orientation") );
     for( size_t i = 0; i < ARRAY_SIZE(p_orientation_values); i++ )
     {
-        dprintf(2, "i = %u\n", i);
         val.i_int = p_orientation_values[i].i_orient;
         var_Change( p_vout, "rotate", VLC_VAR_ADDCHOICE, val,
                     vlc_gettext( p_orientation_values[i].psz_label ) );
