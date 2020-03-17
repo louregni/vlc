@@ -847,6 +847,7 @@ vout_CycleVariable(vout_thread_t *vout,
 VOUT_ACTION_HANDLER(AspectRatio)
 {
     VLC_UNUSED(action_id); VLC_UNUSED(intf);
+    char *choice = var_GetString(vout, "aspect-ratio");
     vout_CycleVariable(vout, "aspect-ratio", VLC_VAR_STRING, true);
 }
 
