@@ -1854,15 +1854,17 @@ AC_ARG_ENABLE([lua],
     [disable LUA scripting support (default enabled)]))
 if test "${enable_lua}" != "no"
 then
-  PKG_CHECK_MODULES(LUA, lua5.2, [ have_lua=yes ], [])
+  dnl Lua from contrib will install a lua.pc pkg-config file  so this must be
+  dnl checked first to avoid mixing contribs includes and system libs
+  PKG_CHECK_MODULES(LUA, lua >= 5.1, [ have_lua=yes ], [])
+
+  AS_IF([test "${have_lua}" != "yes"], [
+    AC_MSG_WARN([${LUA_PKG_ERRORS}, trying lua5.2 instead])
+    PKG_CHECK_MODULES(LUA, lua5.2, [ have_lua=yes ], []) ])
 
   AS_IF([test "${have_lua}" != "yes"], [
     AC_MSG_WARN([${LUA_PKG_ERRORS}, trying lua 5.1 instead])
     PKG_CHECK_MODULES(LUA, lua5.1, [ have_lua=yes ], []) ])
-
-  AS_IF([test "${have_lua}" != "yes"], [
-    AC_MSG_WARN([${LUA_PKG_ERRORS}, trying lua >= 5.1 instead])
-    PKG_CHECK_MODULES(LUA, lua >= 5.1, [ have_lua=yes ], []) ])
 
   AS_IF([test "${have_lua}" != "yes"], [
      AC_MSG_WARN([${LUA_PKG_ERRORS}, trying manual detection instead])
