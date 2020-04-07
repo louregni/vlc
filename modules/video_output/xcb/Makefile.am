@@ -32,14 +32,6 @@ libxcb_window_plugin_la_CFLAGS = $(AM_CFLAGS) \
 libxcb_window_plugin_la_LIBADD = $(XPROTO_LIBS) $(XCB_LIBS) \
 	$(XCB_XKB_LIBS) $(XKBCOMMON_X11_LIBS)
 
-libvk_x11_plugin_la_SOURCES = $(VULKAN_COMMONSOURCES) \
-	video_output/vulkan/surface.c \
-	video_output/vulkan/platform_xcb.c
-libvk_x11_plugin_la_CFLAGS = $(AM_CFLAGS) \
-	$(XCB_CFLAGS) $(VULKAN_COMMONCFLAGS) \
-	-DVK_USE_PLATFORM_XCB_KHR -DPLATFORM_NAME=X11
-libvk_x11_plugin_la_LIBADD = $(VULKAN_COMMONLIBS) $(XCB_LIBS)
-
 libegl_x11_plugin_la_SOURCES = video_output/opengl/egl.c
 libegl_x11_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -DUSE_PLATFORM_X11=1
 libegl_x11_plugin_la_CFLAGS = $(AM_CFLAGS) $(EGL_CFLAGS)
@@ -60,9 +52,6 @@ libxcb_window_plugin_la_SOURCES += \
 	video_output/xcb/keysym.h video_output/xcb/xcb_keysym.h \
 	video_output/xcb/vlc_xkb.h video_output/xcb/xkb.c
 libxcb_window_plugin_la_CFLAGS += -DHAVE_XKBCOMMON
-endif
-if HAVE_VULKAN
-vout_LTLIBRARIES += libvk_x11_plugin.la
 endif
 if HAVE_EGL
 vout_LTLIBRARIES += libegl_x11_plugin.la
