@@ -351,6 +351,24 @@ static int Control(vout_display_t *vd, int query, va_list ap)
     case VOUT_DISPLAY_CHANGE_ZOOM: {
         vout_display_cfg_t cfg = *va_arg (ap, const vout_display_cfg_t *);
         vout_display_PlacePicture(&sys->place, &vd->source, &cfg);
+
+        /* The following resize should be automatic on most platforms but can
+         * trigger bugs on some platform with some drivers, that have been seen
+         * on Windows in particular. Doing it right now enforce the correct
+         * behavior and prevent these bugs.
+         * In addition, platforms like Wayland need the call as the size of the
+         * window is defined by the size of the content, and not the opposite.
+         * The swapchain creation won't be done twice with this call. */
+        if (query == VOUT_DISPLAY_CHANGE_DISPLAY_SIZE)
+        {
+            int width = (int) cfg.display.width;
+            int height = (int) cfg.display.height;
+            pl_swapchain_resize(sys->vk->swapchain, &width, &height);
+
+            if (width != (int) cfg.display.width
+             || height != (int) cfg.display.height)
+                return VLC_EGENERIC;
+        }
         return VLC_SUCCESS;
     }
 
