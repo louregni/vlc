@@ -247,8 +247,7 @@ interop_yuv_base_init(struct vlc_gl_interop *interop, GLenum tex_target,
         assert(internal != 0 && type != 0);
 
         interop->tex_count = 3;
-        for (unsigned i = 0; i < interop->tex_count; ++i )
-        {
+        for (unsigned i = 0; i < interop->tex_count; ++i ) {
             interop->texs[i] = (struct vlc_gl_tex_cfg) {
                 { desc->p[i].w.num, desc->p[i].w.den },
                 { desc->p[i].h.num, desc->p[i].h.den },
