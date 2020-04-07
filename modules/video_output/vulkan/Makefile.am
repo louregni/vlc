@@ -37,6 +37,14 @@ libvk_x11_plugin_la_CFLAGS = $(AM_CFLAGS) \
 	-DVK_USE_PLATFORM_XCB_KHR -DPLATFORM_NAME=X11
 libvk_x11_plugin_la_LIBADD = $(VULKAN_COMMONLIBS) $(XCB_LIBS)
 
+libvk_wl_plugin_la_SOURCES = $(VULKAN_COMMONSOURCES) \
+	video_output/vulkan/surface.c \
+	video_output/vulkan/platform_wayland.c
+libvk_wl_plugin_la_CFLAGS = $(AM_CFLAGS) \
+	$(WAYLAND_CFLAGS) $(VULKAN_COMMONCFLAGS) \
+	-DVK_USE_PLATFORM_WAYLAND_KHR -DPLATFORM_NAME=Wayland
+libvk_wl_plugin_la_LIBADD = $(VULKAN_COMMONLIBS) $(WAYLAND_LIBS)
+
 if HAVE_VULKAN
 vout_LTLIBRARIES += libvk_plugin.la
 
@@ -50,5 +58,9 @@ endif
 
 if HAVE_ANDROID
 vout_LTLIBRARIES += libvk_android_plugin.la
+endif
+
+if HAVE_WAYLAND
+vout_LTLIBRARIES += libvk_wl_plugin.la
 endif
 endif
