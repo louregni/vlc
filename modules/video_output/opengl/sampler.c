@@ -29,8 +29,10 @@
 #include <vlc_opengl.h>
 
 #ifdef HAVE_LIBPLACEBO
+#include <libplacebo/dummy.h>
 #include <libplacebo/shaders.h>
 #include <libplacebo/shaders/colorspace.h>
+#include <libplacebo/shaders/sampling.h>
 #include "../placebo_utils.h"
 #endif
 
@@ -39,6 +41,8 @@
 #include "gl_util.h"
 #include "internal.h"
 #include "interop.h"
+
+#define UPSCALER 1
 
 struct vlc_gl_sampler_priv {
     struct vlc_gl_sampler sampler;
@@ -55,16 +59,38 @@ struct vlc_gl_sampler_priv {
         GLint TexSize[PICTURE_PLANE_MAX]; /* for GL_TEXTURE_RECTANGLE */
         GLint ConvMatrix;
         GLint *pl_vars; /* for pl_sh_res */
-
         GLint TransformMatrix;
         GLint OrientationMatrix;
         GLint TexCoordsMap[PICTURE_PLANE_MAX];
     } uloc;
 
+    struct {
+        GLint Texture[PICTURE_PLANE_MAX];
+        GLint TexSize[PICTURE_PLANE_MAX]; /* for GL_TEXTURE_RECTANGLE */
+        GLint ConvMatrix;
+        GLint *pl_vars; /* for pl_sh_res */
+        GLint TransformMatrix;
+        GLint OrientationMatrix;
+        GLint TexCoordsMap[PICTURE_PLANE_MAX];
+    } uloc_tmp;
+
     bool yuv_color;
     GLfloat conv_matrix[4*4];
 
     /* libplacebo context */
+    struct {
+        GLuint program_id;
+        GLuint program;
+        GLuint lut_texture;
+        GLuint texture;
+        GLuint fbo;
+        GLint *pl_vars[PL_SEP_PASSES];
+        GLint *pl_desc[PL_SEP_PASSES];
+        const struct pl_shader_res *sh[PL_SEP_PASSES];
+        const struct pl_shader_res *sh_color;
+        bool is_ortho;
+    } upscale;
+    const struct pl_gpu *pl_gpu;
     struct pl_context *pl_ctx;
     struct pl_shader *pl_sh;
     const struct pl_shader_res *pl_sh_res;
@@ -260,6 +286,7 @@ sampler_yuv_base_init(struct vlc_gl_sampler *sampler, vlc_fourcc_t chroma,
     }
     return VLC_SUCCESS;
 }
+
 
 static void
 sampler_base_fetch_locations(struct vlc_gl_sampler *sampler, GLuint program)
@@ -703,11 +730,736 @@ InitOrientationMatrix(GLfloat matrix[static 4*4],
     }
 }
 
+static void
+sampler_scale_load(const struct vlc_gl_sampler *sampler)
+{
+    struct vlc_gl_sampler_priv *priv = PRIV(sampler);
+    const struct vlc_gl_interop *interop = priv->interop;
+    const opengl_vtable_t *vt = priv->vt;
+
+    /*Default texture setup*/
+    if (priv->yuv_color)
+        vt->UniformMatrix4fv(priv->uloc.ConvMatrix, 1, GL_FALSE, priv->conv_matrix);
+
+    for (unsigned i = 0; i < interop->tex_count; ++i)
+    {
+        vt->Uniform1i(priv->uloc.Texture[i], i);
+
+        assert(priv->textures[i] != 0);
+        vt->ActiveTexture(GL_TEXTURE0 + i);
+        vt->BindTexture(interop->tex_target, priv->textures[i]);
+
+        vt->UniformMatrix3fv(priv->uloc.TexCoordsMap[i], 1, GL_FALSE,
+                             priv->var.TexCoordsMap[i]);
+    }
+
+    const GLfloat *tm = GetTransformMatrix(interop);
+    vt->UniformMatrix4fv(priv->uloc.TransformMatrix, 1, GL_FALSE, tm);
+
+    vt->UniformMatrix4fv(priv->uloc.OrientationMatrix, 1, GL_FALSE,
+                         priv->var.OrientationMatrix);
+
+    if (interop->tex_target == GL_TEXTURE_RECTANGLE)
+    {
+        for (unsigned i = 0; i < interop->tex_count; ++i)
+            vt->Uniform2f(priv->uloc.TexSize[i], priv->tex_width[i],
+                          priv->tex_height[i]);
+    }
+
+    /*Testing the second passe with orthogonal filtering*/
+    if (priv->upscale.is_ortho)
+    {
+        if (priv->yuv_color)
+            vt->UniformMatrix4fv(priv->uloc_tmp.ConvMatrix, 1, GL_FALSE,
+                                 priv->conv_matrix);
+
+        for (unsigned i = 0; i < interop->tex_count; ++i)
+        {
+            vt->Uniform1i(priv->uloc_tmp.Texture[i], i);
+
+            assert(priv->textures[i] != 0);
+            vt->ActiveTexture(GL_TEXTURE0 + i);
+            vt->BindTexture(interop->tex_target, priv->textures[i]);
+
+            vt->UniformMatrix3fv(priv->uloc_tmp.TexCoordsMap[i], 1, GL_FALSE,
+                                 priv->var.TexCoordsMap[i]);
+        }
+
+        tm = GetTransformMatrix(interop);
+        vt->UniformMatrix4fv(priv->uloc_tmp.TransformMatrix, 1, GL_FALSE, tm);
+
+        vt->UniformMatrix4fv(priv->uloc_tmp.OrientationMatrix, 1, GL_FALSE,
+                             priv->var.OrientationMatrix);
+
+        if (interop->tex_target == GL_TEXTURE_RECTANGLE)
+        {
+            for (unsigned i = 0; i < interop->tex_count; ++i)
+                vt->Uniform2f(priv->uloc_tmp.TexSize[i], priv->tex_width[i],
+                              priv->tex_height[i]);
+        }
+    }
+
+    /*placebo shader requierements*/
+    const struct pl_shader_res *res;
+    for (int pass = PL_SEP_VERT; (res = priv->upscale.sh[pass]) && pass < PL_SEP_PASSES; ++pass)
+    {
+        for (int i = 0; res && i < res->num_variables; i++)
+        {
+            GLint loc = priv->upscale.pl_vars[pass][i];
+            assert(loc != -1);
+
+            struct pl_shader_var sv = res->variables[i];
+            struct pl_var var = sv.var;
+
+            assert(!(var.type != PL_VAR_FLOAT));
+            assert(!(var.dim_m > 1 && var.dim_m != var.dim_v));
+
+            const float *f = sv.data;
+            switch (var.dim_m)
+            {
+                case 4: vt->UniformMatrix4fv(loc, 1, GL_FALSE, f); break;
+                case 3: vt->UniformMatrix3fv(loc, 1, GL_FALSE, f); break;
+                case 2: vt->UniformMatrix2fv(loc, 1, GL_FALSE, f); break;
+
+                case 1:
+                    switch (var.dim_v)
+                    {
+                        case 1: vt->Uniform1f(loc, f[0]); break;
+                        case 2: vt->Uniform2f(loc, f[0], f[1]); break;
+                        case 3: vt->Uniform3f(loc, f[0], f[1], f[2]); break;
+                        case 4: vt->Uniform4f(loc, f[0], f[1], f[2], f[3]); break;
+                    }
+                break;
+            }
+        }
+
+        // descriptors
+        for (int i = 0; res && i < res->num_descriptors; i++)
+        {
+            GLint loc = priv->upscale.pl_desc[pass][i];
+            assert(loc != -1);
+
+            vt->Uniform1i(loc, GL_TEXTURE0 + PICTURE_PLANE_MAX + i);
+        }
+    }
+}
+
+static void
+sampler_scale_fetch_locations(struct vlc_gl_sampler *sampler, GLuint program)
+{
+    struct vlc_gl_sampler_priv *priv = PRIV(sampler);
+    const opengl_vtable_t *vt = priv->vt;
+    const struct vlc_gl_interop *interop = priv->interop;
+
+    /* back up default program */
+    priv->upscale.program = program;
+
+    /*Default texture setup*/
+    if (priv->yuv_color)
+    {
+        priv->uloc.ConvMatrix = vt->GetUniformLocation(program, "ConvMatrix");
+        assert(priv->uloc.ConvMatrix != -1);
+    }
+
+    priv->uloc.TransformMatrix =
+        vt->GetUniformLocation(program, "TransformMatrix");
+    assert(priv->uloc.TransformMatrix != -1);
+
+    priv->uloc.OrientationMatrix =
+        vt->GetUniformLocation(program, "OrientationMatrix");
+    assert(priv->uloc.OrientationMatrix != -1);
+
+    for (unsigned int i = 0; i < interop->tex_count; ++i)
+    {
+        char name[sizeof("TexCoordsMapX")];
+
+        snprintf(name, sizeof(name), "Texture%1u", i);
+        priv->uloc.Texture[i] = vt->GetUniformLocation(program, name);
+        assert(priv->uloc.Texture[i] != -1);
+
+        snprintf(name, sizeof(name), "TexCoordsMap%1u", i);
+        priv->uloc.TexCoordsMap[i] = vt->GetUniformLocation(program, name);
+        assert(priv->uloc.TexCoordsMap[i] != -1);
+
+        if (interop->tex_target == GL_TEXTURE_RECTANGLE)
+        {
+            snprintf(name, sizeof(name), "TexSize%1u", i);
+            priv->uloc.TexSize[i] = vt->GetUniformLocation(program, name);
+            assert(priv->uloc.TexSize[i] != -1);
+        }
+    }
+
+    /* libplacebo uniforms
+       in case of polar filters only the first array is used to store locations
+       in case of orthogonal filters setup a 2nd program that handle the first passe
+     */
+    const struct pl_shader_res *res = priv->upscale.sh[PL_SEP_VERT];
+
+    GLint *pl_vars = priv->upscale.pl_vars[PL_SEP_VERT];
+    for (int i = 0; i < res->num_variables; i++)
+    {
+        struct pl_shader_var sv = res->variables[i];
+        pl_vars[i] = vt->GetUniformLocation(program, sv.var.name);
+        assert(pl_vars[i] != -1);
+    }
+
+    GLint *pl_desc = priv->upscale.pl_desc[PL_SEP_VERT];
+    for (int i = 0; i < res->num_descriptors; i++)
+    {
+        struct pl_shader_desc desc = res->descriptors[i];
+        pl_desc[i] = vt->GetUniformLocation(program, desc.desc.name);
+        assert(pl_desc[i] != -1);
+    }
+
+    /*handle a second shader program for a temporary passe*/
+    if (priv->upscale.is_ortho)
+    {
+        /*use the new shader program created in first_pass_shader*/
+        program = priv->upscale.program_id;
+        if (priv->yuv_color)
+        {
+            priv->uloc_tmp.ConvMatrix = vt->GetUniformLocation(program, "ConvMatrix");
+            assert(priv->uloc_tmp.ConvMatrix != -1);
+        }
+
+        priv->uloc_tmp.TransformMatrix =
+            vt->GetUniformLocation(program, "TransformMatrix");
+        assert(priv->uloc_tmp.TransformMatrix != -1);
+
+        priv->uloc_tmp.OrientationMatrix =
+            vt->GetUniformLocation(program, "OrientationMatrix");
+        assert(priv->uloc_tmp.OrientationMatrix != -1);
+
+        for (unsigned int i = 0; i < interop->tex_count; ++i)
+        {
+            char name[sizeof("TexCoordsMapX")];
+
+            snprintf(name, sizeof(name), "Texture%1u", i);
+            priv->uloc_tmp.Texture[i] = vt->GetUniformLocation(program, name);
+            assert(priv->uloc_tmp.Texture[i] != -1);
+
+            snprintf(name, sizeof(name), "TexCoordsMap%1u", i);
+            priv->uloc_tmp.TexCoordsMap[i] = vt->GetUniformLocation(program, name);
+            assert(priv->uloc_tmp.TexCoordsMap[i] != -1);
+
+            if (interop->tex_target == GL_TEXTURE_RECTANGLE)
+            {
+                snprintf(name, sizeof(name), "TexSize%1u", i);
+                priv->uloc_tmp.TexSize[i] = vt->GetUniformLocation(program, name);
+                assert(priv->uloc_tmp.TexSize[i] != -1);
+            }
+        }
+
+        res = priv->upscale.sh[PL_SEP_HORIZ];
+        pl_vars = priv->upscale.pl_vars[PL_SEP_HORIZ];
+        for (int i = 0; i < res->num_variables; i++)
+        {
+            struct pl_shader_var sv = res->variables[i];
+            pl_vars[i] = vt->GetUniformLocation(program, sv.var.name);
+            assert(pl_vars[i] != -1);
+        }
+
+        pl_desc = priv->upscale.pl_desc[PL_SEP_HORIZ];
+        for (int i = 0; i < res->num_descriptors; i++)
+        {
+            struct pl_shader_desc desc = res->descriptors[i];
+            pl_desc[i] = vt->GetUniformLocation(program, desc.desc.name);
+            assert(pl_desc[i] != -1);
+        }
+    }
+}
+
+static int   first_pass_shader(struct vlc_gl_sampler *sampler)
+{
+    struct vlc_gl_sampler_priv *priv = PRIV(sampler);
+    const opengl_vtable_t *vt = priv->vt;
+
+    const char *vertex_shader = "#version 120\n"
+                        "attribute vec2 PicCoordsIn;\n"
+                        "varying vec2 PicCoords;\n"
+                        "attribute vec3 VertexPosition;\n"
+                        "uniform mat3 StereoMatrix;\n"
+                        "uniform mat4 ProjectionMatrix;\n"
+                        "uniform mat4 ZoomMatrix;\n"
+                        "uniform mat4 ViewMatrix;\n"
+                        "void main() {\n"
+                        " PicCoords = (StereoMatrix * vec3(PicCoordsIn, 1.0)).st;\n"
+                        " gl_Position = ProjectionMatrix * ZoomMatrix * ViewMatrix\n"
+                        "               * vec4(VertexPosition, 1.0);\n"
+                        "}";
+
+    dprintf(2, "\e[31mFirst passe vertex shader :\n\e[32m%s\e[0m\n", vertex_shader);
+#define ADD(x) vlc_memstream_puts(&ms, x)
+#define ADDF(x, ...) vlc_memstream_printf(&ms, x, ##__VA_ARGS__)
+
+    struct vlc_memstream ms;
+    if (vlc_memstream_open(&ms) != 0)
+        return VLC_EGENERIC;
+
+    const struct pl_shader_res *result = priv->upscale.sh[PL_SEP_HORIZ];
+    if (result)
+    {
+        priv->upscale.pl_vars[PL_SEP_HORIZ] =
+            calloc(priv->upscale.sh[PL_SEP_HORIZ]->num_variables, sizeof(GLint));
+        priv->upscale.pl_desc[PL_SEP_HORIZ] =
+            calloc(priv->upscale.sh[PL_SEP_HORIZ]->num_descriptors, sizeof(GLint));
+
+        for (int n = 0; n < result->num_variables; n++)
+        {
+            const struct pl_shader_var *shader_var = &result->variables[n];
+            const struct pl_var *var = &shader_var->var;
+
+            ADDF("uniform %s %s;\n", pl_var_glsl_type_name(*var), var->name);
+        }
+
+        for (int n = 0; n < result->num_vertex_attribs; n++)
+        {
+            const struct pl_shader_va   *vertex_attribs = &result->vertex_attribs[n];
+            const struct pl_vertex_attrib *attr = &vertex_attribs->attr;
+            const struct pl_fmt *fmt = attr->fmt;
+            const char *name = attr->name;
+
+            ADDF("uniform %s %s;\n", fmt->glsl_type, name);
+        }
+
+        for (int n = 0; n < result->num_descriptors; n++)
+        {
+            const struct pl_shader_desc *sd = &result->descriptors[n];
+            const struct pl_desc *sh_desc = &sd->desc;
+
+            ADDF("uniform %s %s;\n", "sampler2D", sh_desc->name);
+        }
+    }
+
+    if (vlc_memstream_close(&ms) != 0)
+        return VLC_EGENERIC;
+
+    static const char *template =
+        "#version 120\n"
+        "uniform mat4 TransformMatrix;\n"
+        "uniform mat4 OrientationMatrix;\n"
+        "uniform sampler2D Texture0;\n"
+        "uniform mat3 TexCoordsMap0;\n"
+        "varying vec2 PicCoords;\n"
+        //"%s" /* extensions */
+        //FRAGMENT_SHADER_PRECISION
+        "%s" /* uniforms libplacebo */
+        "%s" /* upscale function libplacebo */
+        "void main() {\n"
+        " vec3 pic_hcoords = vec3((TransformMatrix * OrientationMatrix * vec4(PicCoords, 0.0, 1.0)).st, 1.0);\n"
+        " vec2 tex_coords = (TexCoordsMap0 * pic_hcoords).st;\n"
+        " gl_FragColor = %s(Texture0, tex_coords);\n" /* libplacebo second passe ortho */
+        "}\n";
+    const struct pl_shader_res *res = priv->upscale.sh[PL_SEP_HORIZ];
+
+
+    char *fragment_shader;
+    int ret = asprintf(&fragment_shader, template, ms.ptr, res->glsl, res->name);
+    if (ret < 0)
+        return VLC_EGENERIC;
+    dprintf(2, "%s\n", fragment_shader);
+
+    //dprintf(2, "\e[31mFirst passe fragment shader :\n\e[32m%s\e[0m\n", fragment_shader);
+
+    GLuint program_id = vlc_gl_BuildProgram(NULL, vt,
+                            1, (const char **) &vertex_shader,
+                            1, (const char **) &fragment_shader);
+    if (!program_id)
+        return VLC_EGENERIC;
+
+    //Framebuffer generation
+    vt->GenFramebuffers(1, &priv->upscale.fbo);
+    vt->BindFramebuffer(GL_FRAMEBUFFER, priv->upscale.fbo);
+    vt->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                             GL_TEXTURE_2D, priv->textures[0], 0);
+
+    GLenum status = vt->CheckFramebufferStatus(GL_FRAMEBUFFER);
+    dprintf(2, "CheckFramebufferStatus : ");
+    switch (status)
+    {
+        case GL_FRAMEBUFFER_UNDEFINED:
+            dprintf(2, "GL_FRAMEBUFFER_UNDEFINED\n");
+            break;
+
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            dprintf(2, "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n");
+            break;
+
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            dprintf(2, "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n");
+            break;
+
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+            dprintf(2, "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n");
+            break;
+
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+            dprintf(2, "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER\n");
+            break;
+
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            dprintf(2, "GL_FRAMEBUFFER_UNSUPPORTED\n");
+            break;
+
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            dprintf(2, "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE\n");
+            break;
+
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+            dprintf(2, "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS\n");
+            break;
+
+        default:
+            dprintf(2, "unkown status\n");
+    }
+
+    //vt->BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    //texture generation
+    //vt->GenTextures(1, &priv->upscale.texture);
+    //vt->BindTexture(GL_TEXTURE_2D, priv->upscale.texture);
+    //vt->TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 50, 50,
+    //                              0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    //vt->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //vt->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //vt->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //vt->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    //vt->ActiveTexture(GL_TEXTURE0 + PICTURE_PLANE_MAX);
+
+    priv->upscale.program_id = program_id;
+    return VLC_SUCCESS;
+}
+
+static int
+opengl_init_shader_scale(struct vlc_gl_sampler *sampler, GLenum tex_target,
+                            vlc_fourcc_t chroma, video_color_space_t yuv_space,
+                            video_orientation_t orientation)
+{
+    struct vlc_gl_sampler_priv *priv = PRIV(sampler);
+    struct vlc_gl_interop *interop = priv->interop;
+
+    const char *swizzle_per_tex[PICTURE_PLANE_MAX] = { NULL };
+    const bool is_yuv = vlc_fourcc_IsYUV(chroma);
+
+
+    const vlc_chroma_description_t *desc = vlc_fourcc_GetChromaDescription(chroma);
+    if (desc == NULL)
+        return VLC_EGENERIC;
+
+    InitOrientationMatrix(priv->var.OrientationMatrix, orientation);
+
+    if (is_yuv)
+    {
+        int ret;
+        ret = sampler_yuv_base_init(sampler, chroma, desc, yuv_space);
+        if (ret != VLC_SUCCESS)
+            return ret;
+        ret = opengl_init_swizzle(interop, swizzle_per_tex, chroma, desc);
+        if (ret != VLC_SUCCESS)
+            return ret;
+    }
+
+    const char *sampler_name;
+    switch (tex_target)
+    {
+        case GL_TEXTURE_EXTERNAL_OES:
+            sampler_name = "samplerExternalOES";
+            break;
+        case GL_TEXTURE_2D:
+            sampler_name = "sampler2D";
+            break;
+        case GL_TEXTURE_RECTANGLE:
+            sampler_name = "sampler2DRect";
+            break;
+        default:
+            vlc_assert_unreachable();
+    }
+
+    //const struct pl_named_filter_config *filter_config = pl_find_named_filter("ewa_hann");
+    const struct pl_named_filter_config *filter_config = pl_find_named_filter("box");
+    assert(filter_config);
+
+    for (int i = 0; i < priv->pl_gpu->num_formats; ++i)
+        dprintf(2, "%s\n", priv->pl_gpu->formats[i]->name);
+
+    struct pl_plane_data planes[4] = { 0 };
+    int nb_planes = vlc_placebo_PlaneFormat(&interop->fmt, planes);
+    assert(nb_planes);
+
+    int num_components = 0;
+    while (planes[0].component_size[num_components])
+        ++num_components;
+
+    struct pl_tex_params tex_params = {
+        .w = priv->interop->fmt.i_width * priv->interop->fmt.i_height * 24,
+        .h = priv->interop->fmt.i_width * priv->interop->fmt.i_height * 24,
+        .d = 0,
+        //.format = pl_find_fmt(priv->pl_gpu, PL_FMT_UNORM, num_components, 0, 0, PL_FMT_CAP_RENDERABLE),
+        .format = pl_find_named_fmt(priv->pl_gpu, "rgba8"),
+        .sampleable = true,
+        .sample_mode = PL_TEX_SAMPLE_LINEAR,
+        .address_mode = PL_TEX_ADDRESS_CLAMP,
+        .user_data = NULL,
+    };
+    assert(tex_params.format);
+
+    struct pl_sample_src sample_src =
+    {
+        .tex = NULL,
+        .sampler_params = tex_params,
+        .sampled_w = priv->interop->fmt.i_width,
+        .sampled_h = priv->interop->fmt.i_height,
+        //.new_w = 300,
+        //.new_h = 300,
+        //.scale = sample_src.new_h / priv->interop->fmt.i_height,
+        //.scale = 1.,
+        .components = num_components,
+    };
+
+    struct pl_shader_obj *lut = NULL;
+    struct pl_sample_filter_params filter_params = {
+        .filter = *filter_config->filter,
+        .lut = &lut,
+    };
+
+    struct pl_glsl_desc gl_desc = { .version = 120, .gles = false, .vulkan = false, };
+
+    struct pl_shader *shader_color = pl_shader_alloc(priv->pl_ctx,
+        &(struct pl_shader_params) { .id = 0, .gpu = priv->pl_gpu, .glsl = gl_desc, });
+    assert(shader_color);
+
+    struct pl_color_map_params color_params = pl_color_map_default_params;
+    color_params.intent = var_InheritInteger(priv->gl, "rendering-intent");
+    color_params.tone_mapping_algo = var_InheritInteger(priv->gl, "tone-mapping");
+    color_params.tone_mapping_param = var_InheritFloat(priv->gl, "tone-mapping-param");
+    #if PL_API_VER >= 10
+        color_params.desaturation_strength = var_InheritFloat(priv->gl, "desat-strength");
+        color_params.desaturation_exponent = var_InheritFloat(priv->gl, "desat-exponent");
+        color_params.desaturation_base = var_InheritFloat(priv->gl, "desat-base");
+    #else
+        color_params.tone_mapping_desaturate = var_InheritFloat(priv->gl, "tone-mapping-desat");
+    #endif
+        color_params.gamut_warning = var_InheritBool(priv->gl, "tone-mapping-warn");
+
+    struct pl_color_space dst_space = pl_color_space_unknown;
+    dst_space.primaries = var_InheritInteger(priv->gl, "target-prim");
+    dst_space.transfer = var_InheritInteger(priv->gl, "target-trc");
+
+    pl_shader_color_map(shader_color, &color_params,
+            vlc_placebo_ColorSpace(&interop->fmt),
+            dst_space, NULL, false);
+
+    struct pl_shader_obj *dither_state = NULL;
+    int method = var_InheritInteger(priv->gl, "dither-algo");
+    if (method >= 0)
+    {
+        unsigned out_bits = 0;
+        int override = var_InheritInteger(priv->gl, "dither-depth");
+        if (override > 0)
+            out_bits = override;
+        else
+        {
+            GLint fb_depth = 0;
+            #if !defined(USE_OPENGL_ES2)
+                   const opengl_vtable_t *vt = priv->vt;
+                   /* fetch framebuffer depth (we are already bound to the default one). */
+                   if (vt->GetFramebufferAttachmentParameteriv != NULL)
+                       vt->GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_BACK_LEFT,
+                                                               GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE,
+                                                               &fb_depth);
+            #endif
+            if (fb_depth <= 0)
+                fb_depth = 8;
+            out_bits = fb_depth;
+         }
+
+         pl_shader_dither(shader_color, out_bits, &dither_state, &(struct pl_dither_params) {
+             .method   = method,
+             //.lut_size = 4, // avoid too large values, since this gets embedded
+         });
+         pl_shader_obj_destroy(&dither_state);
+    }
+    priv->upscale.sh_color = pl_shader_finalize(shader_color);
+
+    GLenum texture_type;
+    const char *sampler_lut;
+    if (filter_params.filter.polar)
+    {
+        struct pl_shader *shader = pl_shader_alloc(priv->pl_ctx,
+            &(struct pl_shader_params) { .id = 1, .gpu = priv->pl_gpu, .glsl = gl_desc, });
+        assert(shader);
+
+        pl_shader_sample_polar(shader, &sample_src, &filter_params);
+        priv->upscale.sh[PL_SEP_VERT] = pl_shader_finalize(shader);
+        texture_type = GL_TEXTURE_1D_ARRAY;
+        sampler_lut = "sampler1D";
+    }
+    else
+    {
+        struct pl_shader *shader_vertical = pl_shader_alloc(priv->pl_ctx,
+            &(struct pl_shader_params) { .id = 1, .gpu = priv->pl_gpu, .glsl = gl_desc, });
+        struct pl_shader *shader_horizontal = pl_shader_alloc(priv->pl_ctx,
+            &(struct pl_shader_params) { .id = 0, .gpu = priv->pl_gpu, .glsl = gl_desc, });
+
+        pl_shader_sample_ortho(shader_vertical, PL_SEP_HORIZ, &sample_src, &filter_params);
+        pl_shader_sample_ortho(shader_horizontal, PL_SEP_VERT, &sample_src, &filter_params);
+
+        priv->upscale.sh[PL_SEP_VERT] = pl_shader_finalize(shader_vertical);
+        priv->upscale.sh[PL_SEP_HORIZ] = pl_shader_finalize(shader_horizontal);
+
+        texture_type = GL_TEXTURE_2D;
+        sampler_lut = "sampler2D";
+        priv->upscale.is_ortho = true;
+        assert(first_pass_shader(sampler) == VLC_SUCCESS);
+    }
+
+    const struct pl_shader_res *result = priv->upscale.sh[PL_SEP_VERT];
+    assert(result);
+    dprintf(2, "Shader :\e[33m%s\n\e[32m%s\e[0m", result->name, result->glsl);
+
+    float *data = NULL;
+    for (int n = 0; n < result->num_descriptors; n++)
+    {
+      const struct pl_shader_desc *sd = &result->descriptors[n];
+      ///assert(sd->desc.type != PL_DESC_SAMPLED_TEX);
+
+      const struct pl_tex *tex = sd->object;
+      data = (float *) pl_tex_dummy_data(tex);
+      if (!data)
+          continue;
+    }
+    assert(data);
+
+    priv->vt->ActiveTexture(GL_TEXTURE0 + PICTURE_PLANE_MAX);
+    priv->vt->GenTextures(1, &priv->upscale.lut_texture);
+    priv->vt->BindTexture(texture_type, priv->upscale.lut_texture);
+    priv->vt->TexImage2D(texture_type, 0, GL_RGBA, tex_params.w, tex_params.h,
+                                        0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    priv->vt->TexParameteri(texture_type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    priv->vt->TexParameteri(texture_type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    priv->vt->TexParameteri(texture_type, GL_TEXTURE_WRAP_S, GL_REPEAT);
+
+
+    struct vlc_memstream ms;
+    if (vlc_memstream_open(&ms) != 0)
+        return VLC_EGENERIC;
+
+    if (is_yuv)
+        ADD("uniform mat4 ConvMatrix;\n");
+
+    ADD("uniform mat4 TransformMatrix;\n"
+        "uniform mat4 OrientationMatrix;\n");
+    for (unsigned i = 0; i < interop->tex_count; ++i)
+        ADDF("uniform %s Texture%u;\n"
+             "uniform mat3 TexCoordsMap%u;\n", sampler_name, i, i);
+
+    result = priv->upscale.sh[PL_SEP_VERT];
+    if (result)
+    {
+        priv->upscale.pl_vars[PL_SEP_VERT] = calloc(priv->upscale.sh[PL_SEP_VERT]->num_variables, sizeof(GLint));
+        priv->upscale.pl_desc[PL_SEP_VERT] = calloc(priv->upscale.sh[PL_SEP_VERT]->num_descriptors, sizeof(GLint));
+
+        for (int n = 0; n < result->num_variables; n++)
+        {
+            const struct pl_shader_var *shader_var = &result->variables[n];
+            const struct pl_var *var = &shader_var->var;
+
+            ADDF("uniform %s %s;\n", pl_var_glsl_type_name(*var), var->name);
+        }
+
+        for (int n = 0; n < result->num_vertex_attribs; n++)
+        {
+            const struct pl_shader_va   *vertex_attribs = &result->vertex_attribs[n];
+            const struct pl_vertex_attrib *attr = &vertex_attribs->attr;
+            const struct pl_fmt *fmt = attr->fmt;
+            const char *name = attr->name;
+
+            ADDF("uniform %s %s;\n", fmt->glsl_type, name);
+        }
+
+        for (int n = 0; n < result->num_descriptors; n++)
+        {
+            const struct pl_shader_desc *sd = &result->descriptors[n];
+            const struct pl_desc *sh_desc = &sd->desc;
+
+            ADDF("uniform %s %s;\n", sampler_lut, sh_desc->name);
+        }
+        ADDF("%s", priv->upscale.sh[PL_SEP_VERT]->glsl);
+    }
+    ADDF("%s", priv->upscale.sh_color->glsl);
+
+    ADD("vec4 vlc_texture(vec2 pic_coords) {\n"
+        " vec3 pic_hcoords = vec3((TransformMatrix * OrientationMatrix * vec4(pic_coords, 0.0, 1.0)).st, 1.0);\n"
+        " vec2 tex_coords;\n");
+
+
+    unsigned color_count;
+    if (is_yuv) {
+        ADD(" vec4 texel;\n"
+            " vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);\n");
+        if (priv->upscale.sh[PL_SEP_HORIZ])
+        {
+            ADD(" vec4 texel_horizontal;\n");
+        }
+        unsigned color_idx = 0;
+        for (unsigned i = 0; i < interop->tex_count; ++i)
+        {
+            const char *swizzle = swizzle_per_tex[i];
+            assert(swizzle);
+            size_t swizzle_count = strlen(swizzle);
+            ADDF(" tex_coords = (TexCoordsMap%u * pic_hcoords).st;\n", i);
+            if (tex_target == GL_TEXTURE_RECTANGLE)
+            {
+                /* The coordinates are in texels values, not normalized */
+                ADDF(" tex_coords = vec2(tex_coords.x * TexSize%u.x,\n"
+                     "                   tex_coords.y * TexSize%u.y);\n", i, i);
+            }
+            //ADDF(" texel = %s(Texture%u, tex_coords);\n", lookup, i);
+            ADDF(" texel = %s(Texture%.1u, tex_coords);\n", priv->upscale.sh[PL_SEP_VERT]->name, i);
+            for (unsigned j = 0; j < swizzle_count; ++j)
+            {
+                ADDF(" pixel[%u] = texel.%c;\n", color_idx, swizzle[j]);
+                color_idx++;
+                assert(color_idx <= PICTURE_PLANE_MAX);
+            }
+        }
+        ADD(" vec4 result = ConvMatrix * pixel;\n");
+        color_count = color_idx;
+    }
+    else
+    {
+        ADD(" tex_coords = (TexCoordsMap0 * pic_hcoords).st;\n");
+        ADDF(" vec4 result = %s(Texture0, tex_coords);\n", priv->upscale.sh[PL_SEP_VERT]->name);
+        color_count = 1;
+    }
+    assert(yuv_space == COLOR_SPACE_UNDEF || color_count == 3);
+
+    ADDF(" return result = %s(result);\n", priv->upscale.sh_color->name);
+    ADD("}\n");
+#undef ADD
+#undef ADDF
+
+    if (vlc_memstream_close(&ms) != 0)
+        return VLC_EGENERIC;
+
+    sampler->shader.extensions = NULL;
+    sampler->shader.body = ms.ptr;
+
+    static const struct vlc_gl_sampler_ops ops = {
+        .fetch_locations = sampler_scale_fetch_locations,
+        .load = sampler_scale_load,
+    };
+    sampler->ops = &ops;
+
+    return VLC_SUCCESS;
+}
 static int
 opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, GLenum tex_target,
                             vlc_fourcc_t chroma, video_color_space_t yuv_space,
                             video_orientation_t orientation)
 {
+#ifdef UPSCALER
+    return opengl_init_shader_scale(sampler, tex_target, chroma, yuv_space, orientation);
+#endif
     struct vlc_gl_sampler_priv *priv = PRIV(sampler);
 
     struct vlc_gl_interop *interop = priv->interop;
@@ -956,7 +1708,25 @@ vlc_gl_sampler_NewFromInterop(struct vlc_gl_interop *interop)
 
 #ifdef HAVE_LIBPLACEBO
     // Create the main libplacebo context
+    struct pl_gpu_dummy_params gpu_dummy_params = {
+        .caps = PL_GPU_CAP_INPUT_VARIABLES,
+        .glsl = (struct pl_glsl_desc) {
+            .version = 120,
+            .gles = false,
+            .vulkan = false,
+        },
+        .limits = (struct pl_gpu_limits) {
+        },
+    };
+    priv->vt->GetIntegerv(GL_MAX_TEXTURE_SIZE, (GLint *)&gpu_dummy_params.limits.max_tex_1d_dim);
+    priv->vt->GetIntegerv(GL_MAX_TEXTURE_SIZE, (GLint *)&gpu_dummy_params.limits.max_tex_2d_dim);
+    priv->vt->GetIntegerv(GL_MAX_3D_TEXTURE_SIZE, (GLint *)&gpu_dummy_params.limits.max_tex_3d_dim);
+
     priv->pl_ctx = vlc_placebo_Create(VLC_OBJECT(interop->gl));
+   // priv->pl_gpu = pl_gpu_dummy_create(priv->pl_ctx, &gpu_dummy_params);
+    priv->pl_gpu = pl_gpu_dummy_create(priv->pl_ctx, NULL);
+
+
     if (priv->pl_ctx) {
 #   if PL_API_VER >= 20
         priv->pl_sh = pl_shader_alloc(priv->pl_ctx, NULL);
@@ -1091,6 +1861,8 @@ vlc_gl_sampler_Delete(struct vlc_gl_sampler *sampler)
 
 #ifdef HAVE_LIBPLACEBO
     FREENULL(priv->uloc.pl_vars);
+    if (priv->pl_gpu)
+        pl_gpu_dummy_destroy(&priv->pl_gpu);
     if (priv->pl_ctx)
         pl_context_destroy(&priv->pl_ctx);
 #endif
@@ -1190,6 +1962,26 @@ vlc_gl_sampler_UpdatePicture(struct vlc_gl_sampler *sampler, picture_t *picture)
         priv->last_source.i_y_offset = source->i_y_offset;
         priv->last_source.i_visible_width = source->i_visible_width;
         priv->last_source.i_visible_height = source->i_visible_height;
+    }
+    if (priv->upscale.is_ortho)
+    {
+        /*
+           change the framebuffer the default framebuffer
+           change the program to the temporary program
+           draw elements inside the default texture
+        */
+
+        /*Switch frambuffer*/
+        //vt->BindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        //vt->FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+        //       GL_TEXTURE_2D, priv->textures[0], 0);
+        const opengl_vtable_t *vt = priv->vt;
+        //vt->BindFramebuffer(GL_FRAMEBUFFER, priv->upscale.fbo);
+        vt->BindFramebuffer(GL_DRAW_FRAMEBUFFER, priv->upscale.fbo);
+
+        vt->UseProgram(priv->upscale.program_id);
+        vt->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+        //vt->BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     }
 
     /* Update the texture */
