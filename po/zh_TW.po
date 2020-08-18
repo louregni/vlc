@@ -10864,10 +10864,6 @@ msgstr "隱藏式字幕解碼器"
 msgid "CDG video decoder"
 msgstr "CDG 視訊解碼器"
 
-#: modules/codec/crystalhd.c:90
-msgid "Crystal HD hardware video decoder"
-msgstr "Crystal HD 硬體視訊解碼器"
-
 #: modules/codec/cvdsub.c:50
 msgid "CVD subtitle decoder"
 msgstr "CVD 字幕解碼器"
@@ -28590,6 +28586,9 @@ msgstr "AAAA; "
 #: modules/gui/qt/ui/vlm.h:302
 msgid "Media Manager List"
 msgstr "媒體管理員清單"
+
+#~ msgid "Crystal HD hardware video decoder"
+#~ msgstr "Crystal HD 硬體視訊解碼器"
 
 #, fuzzy
 #~ msgid "The Sound Font file (SF2/DLS) to use for synthesis."

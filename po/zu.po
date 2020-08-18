@@ -11306,11 +11306,6 @@ msgstr ""
 msgid "CDG video decoder"
 msgstr "I-codec yevidiyo"
 
-#: modules/codec/crystalhd.c:90
-#, fuzzy
-msgid "Crystal HD hardware video decoder"
-msgstr "I-codec yevidiyo"
-
 #: modules/codec/cvdsub.c:50
 #, fuzzy
 msgid "CVD subtitle decoder"
@@ -29902,6 +29897,10 @@ msgstr ""
 #: modules/gui/qt/ui/vlm.h:302
 msgid "Media Manager List"
 msgstr "Isiphathi sohlu semidiya"
+
+#, fuzzy
+#~ msgid "Crystal HD hardware video decoder"
+#~ msgstr "I-codec yevidiyo"
 
 #, fuzzy
 #~ msgid "Capture region heigh"
