@@ -960,7 +960,48 @@ vlc_gl_sampler_New(struct vlc_gl_interop *interop)
 
 #ifdef HAVE_LIBPLACEBO
     // Create the main libplacebo context
+    struct pl_gpu_dummy_params gpu_dummy_params = {
+        .caps = PL_GPU_CAP_INPUT_VARIABLES,
+        .glsl = (struct pl_glsl_desc) {
+#       ifdef USE_OPENGL_ES2
+            .version = 100,
+            .gles = true,
+#       else
+            .version = 120,
+#       endif
+            .vulkan = false,
+        },
+    };
+
+    const opengl_vtable_t *vt = interop->vt;
+
+    vt->GetIntegerv(GL_MAX_TEXTURE_SIZE,
+                    (GLint *)&gpu_dummy_params.limits.max_tex_1d_dim);
+    gpu_dummy_params.limits.max_tex_2d_dim = gpu_dummy_params.limits.max_tex_1d_dim;
+    vt->GetIntegerv(GL_MAX_3D_TEXTURE_SIZE,
+                    (GLint *)&gpu_dummy_params.limits.max_tex_3d_dim);
+    vt->GetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE,
+                    (GLint *)&gpu_dummy_params.limits.max_ubo_size);
+    vt->GetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE,
+                    (GLint *)&gpu_dummy_params.limits.max_ssbo_size);
+    vt->GetIntegerv(GL_MIN_PROGRAM_TEXTURE_GATHER_OFFSET_ARB,
+                    (GLint *)&gpu_dummy_params.limits.min_gather_offset);
+    vt->GetIntegerv(GL_MAX_PROGRAM_TEXTURE_GATHER_OFFSET_ARB,
+                    (GLint *)&gpu_dummy_params.limits.max_gather_offset);
+    vt->GetIntegerv(GL_MAX_COMPUTE_SHARED_MEMORY_SIZE,
+                    (GLint *)&gpu_dummy_params.limits.max_shmem_size);
+    vt->GetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS,
+                    (GLint *)&gpu_dummy_params.limits.max_group_threads);
+    for (int i = 0; i < 3; i++)
+    {
+        vt->GetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i,
+                          (GLint *)&gpu_dummy_params.limits.max_dispatch[i]);
+        vt->GetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i,
+                          (GLint *)&gpu_dummy_params.limits.max_group_size[i]);
+    }
     priv->pl_ctx = vlc_placebo_Create(VLC_OBJECT(interop->gl));
+    priv->pl_gpu = pl_gpu_dummy_create(priv->pl_ctx, &gpu_dummy_params);
+
     if (priv->pl_ctx) {
 #   if PL_API_VER >= 20
         priv->pl_sh = pl_shader_alloc(priv->pl_ctx, &(struct pl_shader_params) {
