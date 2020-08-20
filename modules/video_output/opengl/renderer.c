@@ -199,6 +199,8 @@ BuildVertexShader(const struct vlc_gl_renderer *renderer)
         "               * vec4(VertexPosition, 1.0);\n"
         "}";
 
+    dprintf(2, "\e[34mVertex shader final result : \e[36m\n");
+    dprintf(2, template);
     char *code = strdup(template);
     if (!code)
         return NULL;
@@ -227,6 +229,8 @@ BuildFragmentShader(struct vlc_gl_renderer *renderer)
     const char *extensions = sampler->shader.extensions
                            ? sampler->shader.extensions : "";
 
+    dprintf(2, "\n\n\e[33mFragment shader final result : \e[31m\n");
+    dprintf(2, template, extensions, sampler->shader.body);
     char *code;
     int ret = asprintf(&code, template, extensions, sampler->shader.body);
     if (ret < 0)
