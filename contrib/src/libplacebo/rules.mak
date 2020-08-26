@@ -1,8 +1,9 @@
 # libplacebo
 
-PLACEBO_VERSION := 1.18.0
-PLACEBO_ARCHIVE = libplacebo-v$(PLACEBO_VERSION).tar.gz
-PLACEBO_URL := https://code.videolan.org/videolan/libplacebo/-/archive/v$(PLACEBO_VERSION)/$(PLACEBO_ARCHIVE)
+PLACEBO_HASH := 0199c19c668bcb33cace0a6cbaa101bf24fc5605
+PLACEBO_BRANCH := src_refactor
+PLACEBO_GITURL := https://code.videolan.org/videolan/libplacebo.git
+PLACEBO_BASENAME := $(subst .,_,$(subst \,_,$(subst /,_,$(PLACEBO_HASH))))
 
 DEPS_libplacebo = glslang
 
@@ -20,14 +21,15 @@ endif
 PLACEBOCONF := -Dglslang=enabled \
 	-Dshaderc=disabled
 
-$(TARBALLS)/$(PLACEBO_ARCHIVE):
-	$(call download_pkg,$(PLACEBO_URL),libplacebo)
+$(TARBALLS)/libplacebo-$(PLACEBO_BASENAME).tar.xz:
+	$(call download_git,$(PLACEBO_GITURL),$(PLACEBO_BRANCH),$(PLACEBO_HASH))
 
-.sum-libplacebo: $(PLACEBO_ARCHIVE)
+.sum-libplacebo: $(TARBALLS)/libplacebo-$(PLACEBO_BASENAME).tar.xz
+	$(call check_githash,$(PLACEBO_HASH))
+	touch $@
 
-libplacebo: $(PLACEBO_ARCHIVE) .sum-libplacebo
+libplacebo: libplacebo-$(PLACEBO_BASENAME).tar.xz .sum-libplacebo
 	$(UNPACK)
-	$(APPLY) $(SRC)/libplacebo/0001-meson-fix-glslang-search-path.patch
 	$(MOVE)
 
 .libplacebo: libplacebo crossfile.meson
