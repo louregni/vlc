@@ -209,6 +209,12 @@ typedef void (APIENTRY *PFNGLTEXPARAMETERIPROC) (GLenum target, GLenum pname, GL
 typedef void (APIENTRY *PFNGLTEXSUBIMAGE2DPROC) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels);
 typedef void (APIENTRY *PFNGLVIEWPORTPROC) (GLint x, GLint y, GLsizei width, GLsizei height);
 
+typedef void (APIENTRY *PFNGLGENQUERIES) (GLsizei n, GLuint * ids);
+typedef void (APIENTRY *PFNGLDELETEQUERIES) (GLsizei n, GLuint * ids);
+typedef void (APIENTRY *PFNGLBEGINQUERY) (GLenum target, GLuint id);
+typedef void (APIENTRY *PFNGLENDQUERY) (GLenum target);
+typedef void (APIENTRY *PFNGLGETQUERYOBJECTIV) (GLuint id, GLenum pname, GLint * params);
+
 /* The following are defined in glext.h but not for GLES2 or on Apple systems */
 #if defined(USE_OPENGL_ES2) || defined(__APPLE__)
 #   define PFNGLGETPROGRAMIVPROC             typeof(glGetProgramiv)*
@@ -353,6 +359,14 @@ typedef struct {
     PFNGLFENCESYNCPROC              FenceSync; /* can be NULL */
     PFNGLDELETESYNCPROC             DeleteSync; /* can be NULL */
     PFNGLCLIENTWAITSYNCPROC         ClientWaitSync; /* can be NULL */
+
+    /* Queries objects */
+    PFNGLGENQUERIES                 GenQueries;
+    PFNGLDELETEQUERIES              DeleteQueries;
+    PFNGLBEGINQUERY                 BeginQuery;
+    PFNGLENDQUERY                   EndQuery;
+    PFNGLGETQUERYOBJECTIV           GetQueryObjectiv;
+
 } opengl_vtable_t;
 
 #endif

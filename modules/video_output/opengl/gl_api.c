@@ -128,6 +128,12 @@ vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
     GET_PROC_ADDR_OPTIONAL(FenceSync);
     GET_PROC_ADDR_OPTIONAL(DeleteSync);
     GET_PROC_ADDR_OPTIONAL(ClientWaitSync);
+
+    GET_PROC_ADDR_OPTIONAL(GenQueries);
+    GET_PROC_ADDR_OPTIONAL(DeleteQueries);
+    GET_PROC_ADDR_OPTIONAL(BeginQuery);
+    GET_PROC_ADDR_OPTIONAL(EndQuery);
+    GET_PROC_ADDR_OPTIONAL(GetQueryObjectiv);
 #undef GET_PROC_ADDR
 
     GL_ASSERT_NOERROR(&api->vt);
