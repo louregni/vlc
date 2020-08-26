@@ -70,6 +70,7 @@ vlc_gl_api_Init(struct vlc_gl_api *api, vlc_gl_t *gl)
     GET_PROC_ADDR_CORE(GenTextures);
     GET_PROC_ADDR_CORE(GetError);
     GET_PROC_ADDR_CORE(GetIntegerv);
+    GET_PROC_ADDR_CORE(GetIntegeri_v);
     GET_PROC_ADDR_CORE(GetString);
     GET_PROC_ADDR_CORE(PixelStorei);
     GET_PROC_ADDR_CORE(TexImage2D);
