@@ -204,6 +204,7 @@ typedef const GLubyte *(APIENTRY *PFNGLGETSTRINGPROC) (GLenum name);
 typedef void (APIENTRY *PFNGLGETTEXLEVELPARAMETERIVPROC) (GLenum target, GLint level, GLenum pname, GLint *params);
 typedef void (APIENTRY *PFNGLPIXELSTOREIPROC) (GLenum pname, GLint param);
 typedef void (APIENTRY *PFNGLTEXENVFPROC)(GLenum target, GLenum pname, GLfloat param);
+typedef void (APIENTRY *PFNGLTEXIMAGE1DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void *pixels);
 typedef void (APIENTRY *PFNGLTEXIMAGE2DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
 typedef void (APIENTRY *PFNGLTEXPARAMETERFPROC) (GLenum target, GLenum pname, GLfloat param);
 typedef void (APIENTRY *PFNGLTEXPARAMETERIPROC) (GLenum target, GLenum pname, GLint param);
@@ -292,6 +293,7 @@ typedef struct {
     PFNGLGETINTEGERIVPROC   GetIntegeri_v;
     PFNGLGETSTRINGPROC      GetString;
     PFNGLPIXELSTOREIPROC    PixelStorei;
+    PFNGLTEXIMAGE1DPROC     TexImage1D;
     PFNGLTEXIMAGE2DPROC     TexImage2D;
     PFNGLTEXPARAMETERFPROC  TexParameterf;
     PFNGLTEXPARAMETERIPROC  TexParameteri;
