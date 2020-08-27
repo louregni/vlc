@@ -42,8 +42,6 @@
 #include "internal.h"
 #include "interop.h"
 
-#define UPSCALER 1
-
 struct vlc_gl_sampler_priv {
     struct vlc_gl_sampler sampler;
 
@@ -96,6 +94,9 @@ struct vlc_gl_sampler_priv {
 
     struct vlc_gl_interop *interop;
 };
+
+static const int polar_filters[] = { 0, SCALE_EWA_JINC, SCALE_EWA_LANCZOS,
+SCALE_EWA_GINSENG, SCALE_HAASNSOFT, SCALE_EWA_HANN };
 
 #define PRIV(sampler) container_of(sampler, struct vlc_gl_sampler_priv, sampler)
 
@@ -910,8 +911,8 @@ opengl_init_shader_scale(struct vlc_gl_sampler *sampler, GLenum tex_target,
         ewa_ginseng; // jinc-sinc
 */
 
-    const struct pl_named_filter_config *filter_config = pl_find_named_filter("ewa_lanczos");
-    assert(filter_config);
+    //const struct pl_named_filter_config *filter_config = pl_find_named_filter("ewa_lanczos");
+    //assert(filter_config);
 
     struct pl_plane_data planes[4] = { 0 };
     int nb_planes = vlc_placebo_PlaneFormat(&interop->fmt_out, planes);
@@ -947,8 +948,9 @@ opengl_init_shader_scale(struct vlc_gl_sampler *sampler, GLenum tex_target,
     };
 
     struct pl_shader_obj *lut = NULL;
+    int filter_id = polar_filters[var_InheritInteger(priv->gl, "pl-scale")];
     struct pl_sample_filter_params filter_params = {
-        .filter = *filter_config->filter,
+        .filter = *scale_config[filter_id],
         .lut = &lut,
     };
 
@@ -1167,10 +1169,13 @@ opengl_fragment_shader_init(struct vlc_gl_sampler *sampler, GLenum tex_target,
                             vlc_fourcc_t chroma, video_color_space_t yuv_space,
                             video_orientation_t orientation)
 {
-#ifdef UPSCALER
-    return opengl_init_shader_scale(sampler, tex_target, chroma, yuv_space, orientation);
-#endif
     struct vlc_gl_sampler_priv *priv = PRIV(sampler);
+    int scale_filter = var_InheritInteger(priv->gl, "pl-scale");
+    if(scale_filter > 0 && scale_filter < 6)
+    {
+        return opengl_init_shader_scale(sampler, tex_target, chroma, yuv_space,
+                                        orientation);
+    }
 
     struct vlc_gl_interop *interop = priv->interop;
 

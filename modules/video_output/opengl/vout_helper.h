@@ -51,6 +51,9 @@
 #endif
 
 #define add_glopts_placebo() \
+    set_section(N_("Scaling algorithm"), NULL) \
+    add_integer("pl-scale", 0, SCALE_FILTER_TEXT, SCALE_FILTER_LONGTEXT, false) \
+        change_integer_list(upscale_filters_values, upscale_filters_text) \
     set_section(N_("Colorspace conversion"), NULL) \
     add_integer("rendering-intent", pl_color_map_default_params.intent, \
                 RENDER_INTENT_TEXT, RENDER_INTENT_LONGTEXT, false) \

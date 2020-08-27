@@ -330,6 +330,29 @@ static const struct pl_filter_config *const scale_config[] = {
     [SCALE_CUSTOM]              = NULL,
 };
 
+#define SCALE_FILTER_TEXT "Upscale filters"
+#define SCALE_FILTER_LONGTEXT "Upscale filters"
+
+static const int upscale_filters_values[] = {
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+};
+
+static const char * const upscale_filters_text[] = {
+    "No filter",
+    "Unwindowed EWA Jinc (clipped)",
+    "Jinc / EWA Lanczos 3 taps (high quality, slow)",
+    "EWA Ginseng",
+    "EWA Hann",
+    "HaasnSoft (blurred EWA Hann)",
+    "EWA Robidoux",
+    "EWA RobidouxSharp",
+};
+
 #define UPSCALER_PRESET_TEXT "Upscaler preset"
 #define DOWNSCALER_PRESET_TEXT "Downscaler preset"
 #define SCALER_PRESET_LONGTEXT "Choose from one of the built-in scaler presets. If set to custom, you can choose your own combination of kernel/window functions."
