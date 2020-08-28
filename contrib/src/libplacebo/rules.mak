@@ -1,7 +1,7 @@
 # libplacebo
 
-PLACEBO_HASH := 0199c19c668bcb33cace0a6cbaa101bf24fc5605
-PLACEBO_BRANCH := src_refactor
+PLACEBO_HASH := 5c6ad8508eef3e6f3d2e4a5c7cc96e164f5ef404
+PLACEBO_BRANCH := master
 PLACEBO_GITURL := https://code.videolan.org/videolan/libplacebo.git
 PLACEBO_BASENAME := $(subst .,_,$(subst \,_,$(subst /,_,$(PLACEBO_HASH))))
 
